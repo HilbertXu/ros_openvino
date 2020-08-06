@@ -124,6 +124,7 @@ namespace object_detection_yolo {
 
 		//! Detection result
 		std::vector<DetectionObject> objects;
+		std::vector<std::string> labels;
 		
 
 		//! Camera related parameters

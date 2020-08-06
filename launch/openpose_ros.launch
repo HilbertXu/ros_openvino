@@ -4,6 +4,7 @@
   <!-- Console launch prefix -->
   <arg name="launch_prefix" default=""/>
   <!-- Config and weights folder. -->
+  <rosparam file="$(find robot_vision_openvino)/config/ros.yaml" command="load" ns="openpose_ros" />
   <rosparam file="$(find robot_vision_openvino)/config/openpose.yaml" command="load" ns="openpose_ros" />
   <arg name="openpose_model/path" default="$(find robot_vision_openvino)/models/openpose" />
 
