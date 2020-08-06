@@ -1,0 +1,20 @@
+publisher:
+  detection_image:
+    topic: /yolo_ros/detection_image
+    queue_size: 1
+    latch: true
+  
+  bounding_boxes:
+    topic: /yolo_ros/bounding_boxes
+    queue_size: 1
+    latch: false
+
+yolo_model:
+  name: /frozen_yolov3.xml 
+  precision: /FP32
+  label: /yolov3.names
+  auto_resize: false
+  iou_threshold: 0.4
+  bbox_threshold: 0.5
+  
+

@@ -1,0 +1,19 @@
+subscribers:
+  camera_reading:
+    topic: /astra/rgb/image_raw
+    queue_size: 1
+
+  control_node:
+    topic: /control_to_vision
+    queue_size: 1
+
+publisher:
+  control_node:
+    topic: /vision_to_control
+    queue_size: 1
+    latch: false
+    
+image_view:
+  enable_opencv: true
+  wait_key_delay: 3
+  enable_console_output: false

@@ -1,0 +1,13 @@
+publisher:
+  detection_image:
+    topic: /openpose_ros/estimation_image
+    queue_size: 1
+    latch: true
+  
+  human_poses:
+    topic: /openpose_ros/human_poses
+    queue_size: 1
+    latch: false
+
+openpose_model:
+  name: /human-pose-estimation.xml
