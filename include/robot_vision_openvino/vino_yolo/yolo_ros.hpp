@@ -70,10 +70,10 @@ namespace object_detection_yolo {
 		bool isCheckingForObjects() const;
 
 		/*!
-			* Publishes the Estimation image
+			* Publishes the detection image
 			* @return true if successful
 			*/
-		bool publishEstimationImage(const cv::Mat& EstimationImage);
+		bool publishdetectionImage(const cv::Mat& detectionImage);
 
 		// Using
 		using CheckForObjectsActionServer = actionlib::SimpleActionServer<robot_vision_msgs::CheckForObjectsAction>;
@@ -95,7 +95,7 @@ namespace object_detection_yolo {
 		ros::Subscriber controlSubscriber_;
 
 		//! Publisher of human pose image
-		ros::Publisher estimationImagePublisher_;
+		ros::Publisher detectionImagePublisher_;
 
 		// 临界读写区，储存从相机话题中获取到的图片以及检测结果图片
 		// 通过加锁的方式来获取进行读写操作的权限
@@ -133,7 +133,7 @@ namespace object_detection_yolo {
 		//! Inference engine
 		YoloDetector detector;
 
-		//! Estimation target;
+		//! detection target;
 		bool detectSpecificPose_ = false;
 		std::string targetPose_;
 

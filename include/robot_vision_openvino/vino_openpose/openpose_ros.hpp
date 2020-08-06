@@ -40,6 +40,9 @@
 #include <robot_control_msgs/Results.h>
 #include <robot_control_msgs/Feedback.h>
 #include <robot_vision_msgs/CheckForHumanPosesAction.h>
+#include <robot_vision_msgs/HumanPoses.h>
+#include <robot_vision_msgs/HumanPose.h>
+#include <robot_vision_msgs/Joint.h>
 
 // OpenVINO engine
 #include <inference_engine.hpp>
@@ -129,6 +132,7 @@ namespace human_pose_estimation {
 		//！ ROS Publishers & Subscribers
 		image_transport::Subscriber imageSubscriber_;
 		ros::Publisher controlPublisher_;
+		ros::Publisher posesPublisher_;
 		ros::Subscriber controlSubscriber_;
 
 		//! Publisher of human pose image
@@ -148,6 +152,9 @@ namespace human_pose_estimation {
 		cv::Mat resizedBuff_[3];
 		int buffId_[3];
 		int buffIndex_ = 0;
+
+		// 存储检测结果的vector
+		std::vector<HumanPose> poses;
 
 		// demo 相关参数
 		char* demoPrefix_;

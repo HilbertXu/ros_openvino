@@ -157,6 +157,8 @@ namespace object_detection_yolo {
     InferenceEngine::InferRequest::Ptr inferRequestCurr;
 		// model weights & labels
 		bool autoResize_;
+		double iouThreshold_;
+		double bboxThreshold_;
 		char* weights_;
 		int image_width = 640;
 		int image_height = 480;
@@ -169,10 +171,10 @@ namespace object_detection_yolo {
 		void frameToBlob(const cv::Mat &frame);
 
 		// 加载网络权重和标签文件
-		void loadYoloWeights(std::string modelPath_, std::string modelName_, std::string labelNames_);
+		void loadYoloWeights(std::string modelPath_, std::string labelNames_);
 
 		// 配置网络的输入输出
-		void setUpNetwork(std::string modelPath_, std::string modelName_, std::string labelNames_);
+		void setUpNetwork(std::string modelPath_, std::string labelNames_, double iouThreshold_, double bboxThreshold, bool autoResize_);
 
 		void startCurr();
 
