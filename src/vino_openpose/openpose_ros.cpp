@@ -291,9 +291,17 @@ void* OpenposeROS::estimateInThread() {
 			break;
 		}
 	}
-	//! waiting for inference end...
+	if (enableConsoleOutput_) {
+		printf("\033[2J");
+		printf("\033[1;1H");
+		printf("\nFPS:%.1f\n", fps_);
+		printf("Human number: %d\n\n", int(poses.size()));
+	}
+	
 	// generate poses keypoints
 	poses = estimator.postprocessCurr();
+	// 发布识别结果
+	publishInThread();
 	// rendering keypoints
 	renderHumanPose(poses, buff_[(buffIndex_+2)%3]);
 }
@@ -354,13 +362,11 @@ void OpenposeROS::openpose() {
 		// 计算fps和时间
 		fps_ = 1. /(what_time_is_it_now() - demoTime_);
 		demoTime_ = what_time_is_it_now();
-
+		
 		// 显示检测图片
 		if (viewImage_) {
 			displayInThread(0);
 		} 
-		// 发布识别结果
-		publishInThread();
 
 		// 等待fetch_thread 和 estimate_thread完成
 		fetch_thread.join();

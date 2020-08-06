@@ -92,6 +92,8 @@ void YoloROS::init() {
 
 	// Set up inference engine
 	detector.setUpNetwork(modelPath_, labelPath_, iouThreshold_, bboxThreshold_, autoResize_);
+	// copy the label map
+	labels = detector.labels;
 
 	// start openpose thread
 	yoloThread_ = std::thread(&YoloROS::yolo, this);
@@ -297,6 +299,15 @@ void* YoloROS::estimateInThread() {
 		}
 	}
 	detector.postProcessCurr(objects);
+	if (enableConsoleOutput_) {
+		printf("\033[2J");
+		printf("\033[1;1H");
+		printf("\nFPS:%.1f\n", fps_);
+		printf("Object:\n\n");
+		for (auto object: objects) {
+			printf ("%s\t %.2f\n", labels[object.class_id].c_str(), object.confidence);
+		}
+	}
 	// 发布识别结果
 	publishInThread();
 	// 绘制识别框

@@ -168,8 +168,9 @@ namespace object_detection_yolo {
         for (int j = 0; j < yoloParams_.classes; ++j) {
           int class_index = EntryIndex(side, yoloParams_.coords, yoloParams_.classes, n * side_square + i, yoloParams_.coords + 1 + j);
           float prob = scale * output_blob[class_index];
-          if (prob < threshold)
+          if (prob < threshold) {
             continue;
+          }
           DetectionObject obj(x, y, height, width, j, prob,
                   static_cast<float>(original_im_h) / static_cast<float>(resized_im_h),
                   static_cast<float>(original_im_w) / static_cast<float>(resized_im_w));
@@ -200,7 +201,13 @@ namespace object_detection_yolo {
         if (IntersectionOverUnion(objects[i], objects[j]) >= iouThreshold_)
           objects[j].confidence = 0;
     }
-
+    for (std::vector<DetectionObject>::iterator it = objects.begin(); it != objects.end();) {
+      if (it->confidence == 0) {
+        it = objects.erase(it);
+      } else {
+        ++it;
+      }
+    }
     return objects;
   }
 
