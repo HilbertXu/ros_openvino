@@ -12,14 +12,12 @@ using namespace InferenceEngine;
 namespace object_detection_yolo {
 
   YoloDetector::YoloDetector()
-    : targetDeviceName_("CPU"),
-      autoResize_(false) {
+    : targetDeviceName_("CPU") {
     ROS_INFO("[YoloDetector] Initializing...");
   }
 
   // 将cv::Mat 格式数据类型转换为长二进制数据类型Blob
 	void YoloDetector::frameToBlob(const cv::Mat &frame) {
-		// @TODO 设置FLAG_auto_resize
 		if (autoResize_) {
 			/* Just set input blob containing read image. Resize and layout conversion will be done automatically */
 			inferRequestCurr->SetBlob(cnnNetwork.getInputsInfo().begin()->first, wrapMat2Blob(frame));
@@ -30,24 +28,18 @@ namespace object_detection_yolo {
 		}
 	}
 
-  void YoloDetector::loadYoloWeights(std::string modelPath_, std::string modelName_, std::string labelNames_) {
-    if (modelPath_.empty() || modelName_.empty()) {
+  void YoloDetector::loadYoloWeights(std::string modelPath_, std::string labelNames_) {
+    if (modelPath_.empty()) {
       throw std::runtime_error("Invalid model path!!!, .xml, .bin files excepted...");
     }
-
-    modelPath_ += modelName_;
     YoloDetector::weights_ = new char[modelPath_.length() + 1];
     strcpy(YoloDetector::weights_, modelPath_.c_str());
-
-    
 
     ROS_INFO("[YoloDetector] Loading inference engine...");
     ROS_INFO("[YoloDetector] Device Info: %s", InferenceEngine::GetInferenceEngineVersion()->buildNumber);
 
     //! Loading network model
     cnnNetwork = YoloDetector::inferenceEngine_.ReadNetwork(weights_);
-    //! Loading labels
-    std::string labelFileName = fileNameNoExt(weights_) + ".names";
 
     // Load labels
     ROS_INFO("[YoloDetector] Loading label map...");
@@ -62,9 +54,14 @@ namespace object_detection_yolo {
     ROS_INFO("[YoloDetector] %d Categories in total...", labels.size());
   }
 
-  void YoloDetector::setUpNetwork(std::string modelPath_, std::string modelName_, std::string labelNames_) {
+  void YoloDetector::setUpNetwork(std::string modelPath_, std::string labelNames_, double iouThreshold, double bboxThreshold, bool autoResize) {
     // Load yolo weights first
-    loadYoloWeights(modelPath_, modelName_, labelNames_);
+    loadYoloWeights(modelPath_, labelNames_);
+
+    // Set up parameters
+    iouThreshold_  = iouThreshold;
+    bboxThreshold_ = bboxThreshold;
+    autoResize_    = autoResize;
 
     /** YOLOV3-based network should have one input and three output **/
     // --------------------------------- Preparing input blobs ---------------------------------------------
@@ -192,8 +189,7 @@ namespace object_detection_yolo {
     for (auto &output : cnnNetwork.getOutputsInfo()) {
       auto output_name = output.first;
       Blob::Ptr blob = inferRequestCurr->GetBlob(output_name);
-      // TODO此处改成从rosparam中读取阈值
-      parseYoloV3Output(cnnNetwork, output_name, blob, resized_im_h, resized_im_w, image_height, image_width, 0.5, objects);
+      parseYoloV3Output(cnnNetwork, output_name, blob, resized_im_h, resized_im_w, image_height, image_width, bboxThreshold_, objects);
     } 
     // Filtering overlapping boxes
     std::sort(objects.begin(), objects.end(), std::greater<DetectionObject>());
@@ -201,8 +197,7 @@ namespace object_detection_yolo {
       if (objects[i].confidence == 0)
         continue;
       for (size_t j = i + 1; j < objects.size(); ++j)
-        // TODO 此处改成从rosparam中获取iou阈值
-        if (IntersectionOverUnion(objects[i], objects[j]) >= 0.4)
+        if (IntersectionOverUnion(objects[i], objects[j]) >= iouThreshold_)
           objects[j].confidence = 0;
     }
 
@@ -228,14 +223,13 @@ namespace object_detection_yolo {
   void YoloDetector::renderBoundingBoxes(cv::Mat &frame, std::vector<DetectionObject> objects) {
     // Drawing boxes
     for (auto &object : objects) {
-      // TODO 此处改成从rosparam中获取识别置信度阈值
-      if (object.confidence < 0.3)
+      if (object.confidence < bboxThreshold_)
         continue;
 
       auto label = object.class_id;
       float confidence = object.confidence;
       
-      if (confidence > 0.3) {
+      if (confidence > 0.5) {
         /** Drawing only objects when >confidence_threshold probability **/
         std::ostringstream conf;
         conf << ":" << std::fixed << std::setprecision(3) << confidence;

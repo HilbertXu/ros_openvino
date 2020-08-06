@@ -71,8 +71,8 @@ void OpenposeROS::init() {
 	std::string weightsPath;
 	std::string weightsModel;
 
-	nodeHandle_.param("openpose_model/weight_file/name", weightsModel, std::string("human-pose-estimation.xml"));
-	nodeHandle_.param("weights_path", weightsPath, std::string("/default"));
+	nodeHandle_.param("openpose_model/name", weightsModel, std::string("human-pose-estimation.xml"));
+	nodeHandle_.param("openpose_model/path", weightsPath, std::string("/default"));
 
 	weightsPath += weightsModel;
 	weights = new char[weightsPath.length() + 1];
@@ -95,6 +95,9 @@ void OpenposeROS::init() {
   std::string pubControlTopicName;
   int pubControlQueueSize;
   bool pubControlLatch;
+	std::string pubPosesTopicName;
+  int pubPosesQueueSize;
+  bool pubPosesLatch;
 
 	nodeHandle_.param("subscribers/camera_reading/topic", cameraTopicName, std::string("/astra/rgb/image_raw"));
   nodeHandle_.param("subscribers/camera_reading/queue_size", cameraQueueSize, 1);
@@ -106,6 +109,12 @@ void OpenposeROS::init() {
   nodeHandle_.param("publisher/control_node/topic", pubControlTopicName, std::string("/vision_to_control"));
   nodeHandle_.param("publisher/control_node/queue_size", pubControlQueueSize, 1);
   nodeHandle_.param("publisher/control_node/latch", pubControlLatch, false);
+
+	nodeHandle_.param("publisher/human_poses/topic", pubPosesTopicName, std::string("human_poses"));
+  nodeHandle_.param("publisher/human_poses/queue_size", pubPosesQueueSize, 1);
+  nodeHandle_.param("publisher/human_poses/latch", pubPosesLatch, false);
+
+
   
 	imageSubscriber_ = imageTransport_.subscribe(cameraTopicName, cameraQueueSize, &OpenposeROS::cameraCallback, this);
 	estimationImagePublisher_ =
@@ -113,6 +122,8 @@ void OpenposeROS::init() {
   controlSubscriber_ = nodeHandle_.subscribe(subControlTopicName, subControlQueueSize, &OpenposeROS::controlCallback, this);
   controlPublisher_ = 
       nodeHandle_.advertise<robot_control_msgs::Feedback>(pubControlTopicName, 1, pubControlLatch);
+	posesPublisher_ = 
+			nodeHandle_.advertise<robot_vision_msgs::HumanPoses>(pubPosesTopicName, pubPosesQueueSize, pubPosesLatch);
 
 	// Action servers
 	std::string checkForHumanPosesActionName;
@@ -267,7 +278,7 @@ void* OpenposeROS::estimateInThread() {
 	//! TODO
 	// build estimate thread 
 	// 注意加入内存回收机制，free掉使用过的vector等容器
-	std::vector<HumanPose> poses;
+	
 	// preprocess image
 	estimator.reshape(buff_[(buffIndex_+2)%3]);
 	// load image
@@ -349,7 +360,7 @@ void OpenposeROS::openpose() {
 			displayInThread(0);
 		} 
 		// 发布识别结果
-		// publishInThread();
+		publishInThread();
 
 		// 等待fetch_thread 和 estimate_thread完成
 		fetch_thread.join();
@@ -379,6 +390,23 @@ bool OpenposeROS::isNodeRunning(void) {
 	return isNodeRunning_;
 }
 
+void* OpenposeROS::publishInThread() {
+	robot_vision_msgs::HumanPoses poses_msg;
+	for (int i = 0; i<poses.size(); i++) {
+		robot_vision_msgs::HumanPose pose_msg;
+		pose_msg.human_id = i;
+		for (auto joint :poses[i].keypoints) {
+			robot_vision_msgs::Joint joint_msg;
+			joint_msg.x = joint.x;
+			joint_msg.y = joint.y;
+			pose_msg.joints.push_back(joint_msg);
+		}
+		poses_msg.poses.push_back(pose_msg);
+
+	}
+	posesPublisher_.publish(poses_msg);
+	
+}
 
 
 

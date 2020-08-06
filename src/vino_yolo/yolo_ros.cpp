@@ -68,20 +68,30 @@ void YoloROS::init() {
 	ROS_INFO("[YoloROS] Initializing...");
 
 	// Initialize weight file for openvino_openpose
-	std::string modelPath_;
 	std::string modelName_;
+	std::string modelPath_;
+	std::string modelPrecision_;
+	std::string labelName_;
 	std::string labelPath_;
+	double iouThreshold_;
+	double bboxThreshold_;
+	bool autoResize_;
 
-	nodeHandle_.param("yolo_weights_path", modelPath_, std::string("$(find robot_vision_openvino)/models/yolo/Yolov3-tiny/FP32/"));
-	nodeHandle_.param("yolo_weights_name", modelName_, std::string("frozen_yolov3_tiny.xml"));
-	nodeHandle_.param("yolo_label_names", labelPath_, std::string("/default"));
+	// Load yolo_model parameters from rosparam server
+	nodeHandle_.param("yolo_model/name", modelName_, std::string("/default"));
+	nodeHandle_.param("yolo_model/folder", modelPath_, std::string("/default"));
+	nodeHandle_.param("yolo_model/precision", modelPrecision_, std::string("/FP32"));
+	nodeHandle_.param("yolo_model/folder", labelPath_, std::string("/default"));
+	nodeHandle_.param("yolo_model/label", labelName_, std::string("/default"));
+	nodeHandle_.param("yolo_model/auto_resize", autoResize_, false);
+	nodeHandle_.param("yolo_model/iou_threshold", iouThreshold_, 0.4);
+	nodeHandle_.param("yolo_model/bbox_threshold", bboxThreshold_, 0.5);
 
-	// weightsPath += weightsModel;
-	// weights = new char[weightsPath.length() + 1];
-	// strcpy(weights, weightsPath.c_str());
+	modelPath_.append(modelPrecision_.append(modelName_));
+	labelPath_.append(labelName_);
 
 	// Set up inference engine
-	detector.setUpNetwork(modelPath_, modelName_, labelPath_);
+	detector.setUpNetwork(modelPath_, labelPath_, iouThreshold_, bboxThreshold_, autoResize_);
 
 	// start openpose thread
 	yoloThread_ = std::thread(&YoloROS::yolo, this);
@@ -90,10 +100,10 @@ void YoloROS::init() {
 	// sub camera topic properties
 	std::string cameraTopicName;
 	int cameraQueueSize;
-	// pub estimation image topic properties
-	std::string estimationImageTopicName;
-  int estimationImageQueueSize;
-	bool estimationImageLatch;
+	// pub detection image topic properties
+	std::string detectionImageTopicName;
+  int detectionImageQueueSize;
+	bool detectionImageLatch;
 	// sub control topic properties
   std::string subControlTopicName;
   int subControlQueueSize;
@@ -108,9 +118,9 @@ void YoloROS::init() {
 
 	nodeHandle_.param("subscribers/camera_reading/topic", cameraTopicName, std::string("/astra/rgb/image_raw"));
   nodeHandle_.param("subscribers/camera_reading/queue_size", cameraQueueSize, 1);
-	nodeHandle_.param("publishers/estimation_image/topic", estimationImageTopicName, std::string("estimation_image"));
-  nodeHandle_.param("publishers/estimation_image/queue_size", estimationImageQueueSize, 1);
-  nodeHandle_.param("publishers/estimation_image/latch", estimationImageLatch, true);
+	nodeHandle_.param("publishers/detection_image/topic", detectionImageTopicName, std::string("detection_image"));
+  nodeHandle_.param("publishers/detection_image/queue_size", detectionImageQueueSize, 1);
+  nodeHandle_.param("publishers/detection_image/latch", detectionImageLatch, true);
   nodeHandle_.param("subscribers/control_node/topic", subControlTopicName, std::string("/control_to_vision"));
   nodeHandle_.param("subscribers/control_node/queue_size", subControlQueueSize, 1);
   nodeHandle_.param("publisher/control_node/topic", pubControlTopicName, std::string("/vision_to_control"));
@@ -122,8 +132,8 @@ void YoloROS::init() {
   nodeHandle_.param("publisher/bounding_boxes/latch", pubBboxesLatch, false);
   
 	imageSubscriber_ = imageTransport_.subscribe(cameraTopicName, cameraQueueSize, &YoloROS::cameraCallback, this);
-	estimationImagePublisher_ =
-      nodeHandle_.advertise<sensor_msgs::Image>(estimationImageTopicName, estimationImageQueueSize, estimationImageLatch);
+	detectionImagePublisher_ =
+      nodeHandle_.advertise<sensor_msgs::Image>(detectionImageTopicName, detectionImageQueueSize, detectionImageLatch);
   controlSubscriber_ = nodeHandle_.subscribe(subControlTopicName, subControlQueueSize, &YoloROS::controlCallback, this);
   controlPublisher_ = 
       nodeHandle_.advertise<robot_control_msgs::Feedback>(pubControlTopicName, pubControlQueueSize, pubControlLatch);
@@ -262,8 +272,6 @@ void* YoloROS::fetchInThread() {
 		headerBuff_[buffIndex_] = imageWithHeader.header;
 		buffId_[buffIndex_] = actionId_;
 	}
-	//! TODO
-	//! 根据OpenVINO的推理引擎要求，对缓存区内的图像进行预处理，(bgr8 -> rgb, resize)
 }
 
 void* YoloROS::displayInThread(void* ptr) {
