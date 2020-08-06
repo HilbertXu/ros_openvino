@@ -2,19 +2,16 @@
 <launch>
   <!-- Console launch prefix -->
   <arg name="launch_prefix" default=""/>
+  
+  <!-- Weights folder -->>
+  <arg name="yolo_model/folder" default="$(find robot_vision_openvino)/models/yolo/yolov3"/>
 
   <!-- Config and weights folder. -->
-  <arg name="yolo_weights_path"           default="$(find robot_vision_openvino)/models/yolo/Yolov3/FP32/"/>
-  <arg name="yolo_weights_name"           default="frozen_yolov3.xml"/>
-  <arg name="yolo_label_names"            default="/home/kamerider/mustar_robot/src/robot_vision/robot_vision_openvino/models/yolo/yolov3.names"/>
-  <arg name="camera_topic"                default="/astra/rgb/image_raw"/>
-
+  <rosparam file="$(find robot_vision_openvino)/config/ros.yaml" command="load" ns="yolo_ros" />
+  <rosparam file="$(find robot_vision_openvino)/config/yolov3.yaml" command="load" ns="yolo_ros" />
   <!-- Start darknet and ros wrapper -->
   <node pkg="robot_vision_openvino" type="yolo_ros" name="yolo_ros" output="screen" launch-prefix="$(arg launch_prefix)">
-    <param name="yolo_weights_path"          value="$(arg yolo_weights_path)" />
-    <param name="yolo_weights_name"           value="$(arg yolo_weights_name)" />
-    <param name="yolo_label_names"             value="$(arg yolo_label_names)" />
-    <param name="subscribers/camera_reading/topic" value="$(arg camera_topic)"/>
+    <param name="yolo_model/folder"          value="$(arg yolo_model/folder)" />
   </node>
 
  <!--<node name="republish" type="republish" pkg="image_transport" output="screen" 	args="compressed in:=/front_camera/image_raw raw out:=/camera/image_raw" /> -->
