@@ -4,7 +4,7 @@
   <arg name="launch_prefix" default=""/>
   
   <!-- Weights folder -->>
-  <arg name="yolo_model/folder" default="$(find robot_vision_openvino)/models/yolo/yolov3"/>
+  <arg name="yolo_model/folder" default="$(find robot_vision_openvino)/models/yolo/yolov3-tiny"/>
 
   <!-- Config and weights folder. -->
   <rosparam file="$(find robot_vision_openvino)/config/ros.yaml" command="load" ns="yolo_ros" />

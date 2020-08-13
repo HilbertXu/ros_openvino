@@ -10,7 +10,7 @@ publisher:
     latch: false
 
 yolo_model:
-  name: /yolo-v3.xml 
+  name: /yolov3-tiny.xml 
   precision: /FP32
   label: /yolov3.names
   auto_resize: false
