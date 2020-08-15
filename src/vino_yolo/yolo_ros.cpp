@@ -399,7 +399,6 @@ bool YoloROS::isNodeRunning(void) {
 
 void* YoloROS::publishInThread() {
 	robot_vision_msgs::BoundingBoxes msg;
-	msg.image_header.frame_id = "/camera_top_rgb_frame";
 	for (auto object: objects) {
 		if (object.confidence < 0.5) {
 			continue;
@@ -414,7 +413,11 @@ void* YoloROS::publishInThread() {
 			msg.bounding_boxes.push_back(bbox_);
 		}
 	}
-	bboxesPublisher_.publish(msg);
+	if (msg.bounding_boxes.size()>0) {
+		msg.image_header.frame_id = "/camera_top_rgb_frame";
+		msg.header.stamp = ros::Time::now();
+		bboxesPublisher_.publish(msg);
+	}
 }
 
 
