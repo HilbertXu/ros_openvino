@@ -398,15 +398,47 @@ bool OpenposeROS::isNodeRunning(void) {
 
 void* OpenposeROS::publishInThread() {
 	robot_vision_msgs::HumanPoses poses_msg;
+	poses_msg.image_header.frame_id = "/camera_top_rgb_frame";
+	poses_msg.header.stamp = ros::Time::now();
 	for (int i = 0; i<poses.size(); i++) {
 		robot_vision_msgs::HumanPose pose_msg;
 		pose_msg.human_id = i;
-		for (auto joint :poses[i].keypoints) {
-			robot_vision_msgs::Joint joint_msg;
-			joint_msg.x = joint.x;
-			joint_msg.y = joint.y;
-			pose_msg.joints.push_back(joint_msg);
-		}
+		pose_msg.Nose.x = poses[i].keypoints[0].x;
+		pose_msg.Nose.y = poses[i].keypoints[0].y;
+		pose_msg.Chest.x = poses[i].keypoints[1].x;
+		pose_msg.Chest.y = poses[i].keypoints[1].y;
+		pose_msg.RShoulder.x = poses[i].keypoints[2].x;
+		pose_msg.RShoulder.y = poses[i].keypoints[2].y;
+		pose_msg.RElbow.x = poses[i].keypoints[3].x;
+		pose_msg.RElbow.y = poses[i].keypoints[3].y;
+		pose_msg.RWrist.x = poses[i].keypoints[4].x;
+		pose_msg.RWrist.y = poses[i].keypoints[4].y;
+		pose_msg.LShoulder.x = poses[i].keypoints[5].x;
+		pose_msg.LShoulder.y = poses[i].keypoints[5].y;
+		pose_msg.LElbow.x = poses[i].keypoints[6].x;
+		pose_msg.LElbow.y = poses[i].keypoints[6].y;
+		pose_msg.LWrist.x = poses[i].keypoints[7].x;
+		pose_msg.LWrist.y = poses[i].keypoints[7].y;
+		pose_msg.RHip.x = poses[i].keypoints[8].x;
+		pose_msg.RHip.y = poses[i].keypoints[8].y;
+		pose_msg.RKnee.x = poses[i].keypoints[9].x;
+		pose_msg.RKnee.y = poses[i].keypoints[9].y;
+		pose_msg.RAnkle.x = poses[i].keypoints[10].x;
+		pose_msg.RAnkle.y = poses[i].keypoints[10].y;
+		pose_msg.LHip.x = poses[i].keypoints[11].x;
+		pose_msg.LHip.y = poses[i].keypoints[11].y;
+		pose_msg.LKnee.x = poses[i].keypoints[12].x;
+		pose_msg.LKnee.y = poses[i].keypoints[12].y;
+		pose_msg.LAnkle.x = poses[i].keypoints[13].x;
+		pose_msg.LAnkle.y = poses[i].keypoints[13].y;
+		pose_msg.REye.x = poses[i].keypoints[14].x;
+		pose_msg.REye.y = poses[i].keypoints[14].y;
+		pose_msg.LEye.x = poses[i].keypoints[15].x;
+		pose_msg.LEye.y = poses[i].keypoints[15].y;
+		pose_msg.REar.x = poses[i].keypoints[16].x;
+		pose_msg.REar.y = poses[i].keypoints[16].y;
+		pose_msg.LEar.x = poses[i].keypoints[17].x;
+		pose_msg.LEar.y = poses[i].keypoints[17].y;
 		poses_msg.poses.push_back(pose_msg);
 
 	}
