@@ -73,6 +73,17 @@ void OpenposeROS::init() {
 
 	nodeHandle_.param("openpose_model/name", weightsModel, std::string("human-pose-estimation.xml"));
 	nodeHandle_.param("openpose_model/path", weightsPath, std::string("/default"));
+	nodeHandle_.param("openpose_model/pose_output", outputPoseFlag_, bool(true));
+	nodeHandle_.param("under_control", underControl_, bool(false));
+
+	if (!underControl_) {
+		startEstimateFlag_ = true;
+		pubMessageFlag_ = true;
+	} else {
+		startEstimateFlag_ = false;
+		pubMessageFlag_ = false;
+		ROS_INFO("[OpenposeROS] Waiting for command from control node...");
+	}
 
 	weightsPath += weightsModel;
 	weights = new char[weightsPath.length() + 1];
@@ -150,6 +161,7 @@ void OpenposeROS::controlCallback(const robot_control_msgs::Mission msg) {
 			startEstimateFlag_ = true;
 			// 允许发布检测结果信息
 			pubMessageFlag_ = true;
+			ROS_INFO("[OpenposeROS] Target pose: %s", targetPose_.c_str());
 		}
 		else if (msg.action == "estimate") {
 			// 没有检测目标 --> 返回每帧图像中所有人体骨架的关键点以及姿态
@@ -158,10 +170,13 @@ void OpenposeROS::controlCallback(const robot_control_msgs::Mission msg) {
 			startEstimateFlag_ = true;
 			// 允许发布检测结果信息
 			pubMessageFlag_ = true;
+			ROS_INFO("[OpenposeROS] Start estimating human pose");
 		}
-		else if (msg.action.find("stop")){
+		else if (msg.action == "stop_detect"){
 			// stop --> 停止对接收到的图像进行推理
 			startEstimateFlag_ = false;	
+			pubMessageFlag_ = false;
+			ROS_INFO("[OpenposeROS] Stop inferring...");
 		}
 	}
 }
@@ -275,35 +290,34 @@ void* OpenposeROS::displayInThread(void* ptr) {
 }
 
 void* OpenposeROS::estimateInThread() {
-	//! TODO
-	// build estimate thread 
-	// 注意加入内存回收机制，free掉使用过的vector等容器
-	
-	// preprocess image
-	estimator.reshape(buff_[(buffIndex_+2)%3]);
-	// load image
-	estimator.frameToBlobCurr(buff_[(buffIndex_+2)%3]);
-	// inference current image
-	estimator.startCurr();
-	// Waiting for current inference
-	while (true) {
-		if (estimator.readyCurr()) {
-			break;
+	if (startEstimateFlag_) {
+		// build estimate thread 	
+		// preprocess image
+		estimator.reshape(buff_[(buffIndex_+2)%3]);
+		// load image
+		estimator.frameToBlobCurr(buff_[(buffIndex_+2)%3]);
+		// inference current image
+		estimator.startCurr();
+		// Waiting for current inference
+		while (true) {
+			if (estimator.readyCurr()) {
+				break;
+			}
 		}
+		if (enableConsoleOutput_) {
+			printf("\033[2J");
+			printf("\033[1;1H");
+			printf("\nFPS:%.1f\n", fps_);
+			printf("Human number: %d\n\n", int(poses.size()));
+		}
+		
+		// generate poses keypoints
+		poses = estimator.postprocessCurr();
+		// 发布识别结果
+		publishInThread();
+		// rendering keypoints
+		renderHumanPose(poses, buff_[(buffIndex_+2)%3]);
 	}
-	if (enableConsoleOutput_) {
-		printf("\033[2J");
-		printf("\033[1;1H");
-		printf("\nFPS:%.1f\n", fps_);
-		printf("Human number: %d\n\n", int(poses.size()));
-	}
-	
-	// generate poses keypoints
-	poses = estimator.postprocessCurr();
-	// 发布识别结果
-	publishInThread();
-	// rendering keypoints
-	renderHumanPose(poses, buff_[(buffIndex_+2)%3]);
 }
 
 // 初始化推理引擎
@@ -396,54 +410,80 @@ bool OpenposeROS::isNodeRunning(void) {
 	return isNodeRunning_;
 }
 
-void* OpenposeROS::publishInThread() {
-	robot_vision_msgs::HumanPoses poses_msg;
-	poses_msg.image_header.frame_id = "/camera_top_rgb_frame";
-	poses_msg.header.stamp = ros::Time::now();
-	for (int i = 0; i<poses.size(); i++) {
-		robot_vision_msgs::HumanPose pose_msg;
-		pose_msg.human_id = i;
-		pose_msg.Nose.x = poses[i].keypoints[0].x;
-		pose_msg.Nose.y = poses[i].keypoints[0].y;
-		pose_msg.Chest.x = poses[i].keypoints[1].x;
-		pose_msg.Chest.y = poses[i].keypoints[1].y;
-		pose_msg.RShoulder.x = poses[i].keypoints[2].x;
-		pose_msg.RShoulder.y = poses[i].keypoints[2].y;
-		pose_msg.RElbow.x = poses[i].keypoints[3].x;
-		pose_msg.RElbow.y = poses[i].keypoints[3].y;
-		pose_msg.RWrist.x = poses[i].keypoints[4].x;
-		pose_msg.RWrist.y = poses[i].keypoints[4].y;
-		pose_msg.LShoulder.x = poses[i].keypoints[5].x;
-		pose_msg.LShoulder.y = poses[i].keypoints[5].y;
-		pose_msg.LElbow.x = poses[i].keypoints[6].x;
-		pose_msg.LElbow.y = poses[i].keypoints[6].y;
-		pose_msg.LWrist.x = poses[i].keypoints[7].x;
-		pose_msg.LWrist.y = poses[i].keypoints[7].y;
-		pose_msg.RHip.x = poses[i].keypoints[8].x;
-		pose_msg.RHip.y = poses[i].keypoints[8].y;
-		pose_msg.RKnee.x = poses[i].keypoints[9].x;
-		pose_msg.RKnee.y = poses[i].keypoints[9].y;
-		pose_msg.RAnkle.x = poses[i].keypoints[10].x;
-		pose_msg.RAnkle.y = poses[i].keypoints[10].y;
-		pose_msg.LHip.x = poses[i].keypoints[11].x;
-		pose_msg.LHip.y = poses[i].keypoints[11].y;
-		pose_msg.LKnee.x = poses[i].keypoints[12].x;
-		pose_msg.LKnee.y = poses[i].keypoints[12].y;
-		pose_msg.LAnkle.x = poses[i].keypoints[13].x;
-		pose_msg.LAnkle.y = poses[i].keypoints[13].y;
-		pose_msg.REye.x = poses[i].keypoints[14].x;
-		pose_msg.REye.y = poses[i].keypoints[14].y;
-		pose_msg.LEye.x = poses[i].keypoints[15].x;
-		pose_msg.LEye.y = poses[i].keypoints[15].y;
-		pose_msg.REar.x = poses[i].keypoints[16].x;
-		pose_msg.REar.y = poses[i].keypoints[16].y;
-		pose_msg.LEar.x = poses[i].keypoints[17].x;
-		pose_msg.LEar.y = poses[i].keypoints[17].y;
-		poses_msg.poses.push_back(pose_msg);
-
+void OpenposeROS::poseClassification(robot_vision_msgs::HumanPose &pose_) {
+	// 目前仅实现简单地判断是否将手举起来
+	if (pose_.RWrist.y < pose_.RElbow.y && pose_.LWrist.y < pose_.LElbow.y) {
+		pose_.pose = "Surrender!!!";
+	} else if (pose_.RWrist.y < pose_.RElbow.y) {
+		pose_.pose = "waving_right";
+	} else if (pose_.LWrist.y < pose_.LElbow.y) {
+		pose_.pose = "waving_left";
+	} else {
+		pose_.pose = "standing";
 	}
-	posesPublisher_.publish(poses_msg);
-	
+	if (pose_.pose == targetPose_) {
+		robot_control_msgs::Feedback msg;
+		msg.action = "detect";
+		msg.target = "human_pose";
+		msg.mission_state = "success";
+		controlPublisher_.publish(msg);
+	}
+}
+
+void* OpenposeROS::publishInThread() {
+	if (pubMessageFlag_) {
+		robot_vision_msgs::HumanPoses poses_msg;
+		poses_msg.image_header.frame_id = "/camera_top_rgb_frame";
+		poses_msg.header.stamp = ros::Time::now();
+		for (int i = 0; i<poses.size(); i++) {
+			robot_vision_msgs::HumanPose pose_msg;
+			pose_msg.human_id = i;
+			pose_msg.Nose.x = poses[i].keypoints[0].x;
+			pose_msg.Nose.y = poses[i].keypoints[0].y;
+			pose_msg.Chest.x = poses[i].keypoints[1].x;
+			pose_msg.Chest.y = poses[i].keypoints[1].y;
+			pose_msg.RShoulder.x = poses[i].keypoints[2].x;
+			pose_msg.RShoulder.y = poses[i].keypoints[2].y;
+			pose_msg.RElbow.x = poses[i].keypoints[3].x;
+			pose_msg.RElbow.y = poses[i].keypoints[3].y;
+			pose_msg.RWrist.x = poses[i].keypoints[4].x;
+			pose_msg.RWrist.y = poses[i].keypoints[4].y;
+			pose_msg.LShoulder.x = poses[i].keypoints[5].x;
+			pose_msg.LShoulder.y = poses[i].keypoints[5].y;
+			pose_msg.LElbow.x = poses[i].keypoints[6].x;
+			pose_msg.LElbow.y = poses[i].keypoints[6].y;
+			pose_msg.LWrist.x = poses[i].keypoints[7].x;
+			pose_msg.LWrist.y = poses[i].keypoints[7].y;
+			pose_msg.RHip.x = poses[i].keypoints[8].x;
+			pose_msg.RHip.y = poses[i].keypoints[8].y;
+			pose_msg.RKnee.x = poses[i].keypoints[9].x;
+			pose_msg.RKnee.y = poses[i].keypoints[9].y;
+			pose_msg.RAnkle.x = poses[i].keypoints[10].x;
+			pose_msg.RAnkle.y = poses[i].keypoints[10].y;
+			pose_msg.LHip.x = poses[i].keypoints[11].x;
+			pose_msg.LHip.y = poses[i].keypoints[11].y;
+			pose_msg.LKnee.x = poses[i].keypoints[12].x;
+			pose_msg.LKnee.y = poses[i].keypoints[12].y;
+			pose_msg.LAnkle.x = poses[i].keypoints[13].x;
+			pose_msg.LAnkle.y = poses[i].keypoints[13].y;
+			pose_msg.REye.x = poses[i].keypoints[14].x;
+			pose_msg.REye.y = poses[i].keypoints[14].y;
+			pose_msg.LEye.x = poses[i].keypoints[15].x;
+			pose_msg.LEye.y = poses[i].keypoints[15].y;
+			pose_msg.REar.x = poses[i].keypoints[16].x;
+			pose_msg.REar.y = poses[i].keypoints[16].y;
+			pose_msg.LEar.x = poses[i].keypoints[17].x;
+			pose_msg.LEar.y = poses[i].keypoints[17].y;
+			if (outputPoseFlag_) {
+				poseClassification(pose_msg);
+			}
+			poses_msg.poses.push_back(pose_msg);
+
+		}
+		if (poses_msg.poses.size() > 0) {
+			posesPublisher_.publish(poses_msg);
+		}
+	}
 }
 
 

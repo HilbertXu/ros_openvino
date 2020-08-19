@@ -1,5 +1,5 @@
 /*
- * openpose_ros.cpp
+ * yolo_ros.cpp
  *  Created on: July 15th, 2020
  *      Author: Hilbert Xu
  *   Institute: Mustar Robot
@@ -67,7 +67,7 @@ bool YoloROS::readParameters() {
 void YoloROS::init() {
 	ROS_INFO("[YoloROS] Initializing...");
 
-	// Initialize weight file for openvino_openpose
+	// Initialize weight file for openvino_yolo
 	std::string modelName_;
 	std::string modelPath_;
 	std::string modelPrecision_;
@@ -90,12 +90,23 @@ void YoloROS::init() {
 	modelPath_.append(modelPrecision_.append(modelName_));
 	labelPath_.append(labelName_);
 
+	nodeHandle_.param("under_control", underControl_, bool(false));
+
+	if (!underControl_) {
+		startDetectFlag_ = true;
+		pubMessageFlag_ = true;
+	} else {
+		startDetectFlag_ = false;
+		pubMessageFlag_ = false;
+		ROS_INFO("[YoloROS] Waiting for command from control node...");
+	}
+
 	// Set up inference engine
 	detector.setUpNetwork(modelPath_, labelPath_, iouThreshold_, bboxThreshold_, autoResize_);
 	// copy the label map
 	labels = detector.labels;
 
-	// start openpose thread
+	// start Yolo thread
 	yoloThread_ = std::thread(&YoloROS::yolo, this);
 
 	// Initialize publisher and subscriber
@@ -156,29 +167,27 @@ void YoloROS::init() {
 
 void YoloROS::controlCallback(const robot_control_msgs::Mission msg) {
 	// 接收来自control节点的消息
-	if (msg.target == "human_pose") {
+	if (msg.target == "object") {
 		// 如果目标是human pose
-		if (msg.action == "detect" && msg.attributes.human.gesture != "") {
-			// 有检测目标 --> 检测特定姿态
-			detectSpecificPose_ = true;
-			// 记录目标姿态
-			targetPose_ = msg.attributes.human.gesture;
+		if (msg.action == "detect") {
+			if (msg.attributes.object.name != "") {
+				// 有检测目标 --> 检测特定姿态
+				detectSpecificObject_ = true;
+				// 记录目标姿态
+				targetObject_ = msg.attributes.object.name;
+				ROS_INFO("[YoloROS] Detect target: %s", targetObject_.c_str());
+			}
 			// 开始进行姿态估计
-			startEstimateFlag_ = true;
+			startDetectFlag_ = true;
 			// 允许发布检测结果信息
 			pubMessageFlag_ = true;
+			ROS_INFO("[YoloROS] Start detecting...");
 		}
-		else if (msg.action == "estimate") {
-			// 没有检测目标 --> 返回每帧图像中所有人体骨架的关键点以及姿态
-			detectSpecificPose_ = false;
-			// 开始进行姿态估计
-			startEstimateFlag_ = true;
-			// 允许发布检测结果信息
-			pubMessageFlag_ = true;
-		}
-		else if (msg.action.find("stop")){
+		else if (msg.action == "stop_detect"){
+			ROS_INFO("[YoloROS] Stop inferring...");
 			// stop --> 停止对接收到的图像进行推理
-			startEstimateFlag_ = false;	
+			startDetectFlag_ = false;	
+			pubMessageFlag_ = false;
 		}
 	}
 }
@@ -291,27 +300,29 @@ void* YoloROS::displayInThread(void* ptr) {
 
 void* YoloROS::estimateInThread() {
 	objects.clear();
-	detector.frameToBlob(buff_[(buffIndex_+2)%3]);
-	detector.startCurr();
-	while (true) {
-		if (detector.readyCurr()) {
-			break;
+	if (startDetectFlag_) {
+		detector.frameToBlob(buff_[(buffIndex_+2)%3]);
+		detector.startCurr();
+		while (true) {
+			if (detector.readyCurr()) {
+				break;
+			}
 		}
-	}
-	detector.postProcessCurr(objects);
-	if (enableConsoleOutput_) {
-		printf("\033[2J");
-		printf("\033[1;1H");
-		printf("\nFPS:%.1f\n", fps_);
-		printf("Object:\n\n");
-		for (auto object: objects) {
-			printf ("%s\t %.2f\n", labels[object.class_id].c_str(), object.confidence);
+		detector.postProcessCurr(objects);
+		if (enableConsoleOutput_) {
+			printf("\033[2J");
+			printf("\033[1;1H");
+			printf("\nFPS:%.1f\n", fps_);
+			printf("Object:\n\n");
+			for (auto object: objects) {
+				printf ("%s\t %.2f\n", labels[object.class_id].c_str(), object.confidence);
+			}
 		}
+		// 发布识别结果
+		publishInThread();
+		// 绘制识别框
+		detector.renderBoundingBoxes(buff_[(buffIndex_+2)%3], objects);
 	}
-	// 发布识别结果
-	publishInThread();
-	// 绘制识别框
-	detector.renderBoundingBoxes(buff_[(buffIndex_+2)%3], objects);
 }
 
 void YoloROS::yolo() {
@@ -398,25 +409,57 @@ bool YoloROS::isNodeRunning(void) {
 }
 
 void* YoloROS::publishInThread() {
-	robot_vision_msgs::BoundingBoxes msg;
-	for (auto object: objects) {
-		if (object.confidence < 0.5) {
-			continue;
-		} else {
-			robot_vision_msgs::BoundingBox bbox_;
-			bbox_.Class = detector.labels[object.class_id];
-			bbox_.probability = object.confidence;
-			bbox_.xmin = object.xmin;
-			bbox_.xmax = object.xmax;
-			bbox_.ymin = object.ymin;
-			bbox_.ymax = object.ymax;
-			msg.bounding_boxes.push_back(bbox_);
+	if (pubMessageFlag_) {
+		robot_vision_msgs::BoundingBoxes msg;
+		for (auto object: objects) {
+			if (object.confidence < 0.5) {
+				continue;
+			} else {
+				robot_vision_msgs::BoundingBox bbox_;
+				bbox_.Class = detector.labels[object.class_id];
+				bbox_.probability = object.confidence;
+				bbox_.xmin = object.xmin;
+				bbox_.xmax = object.xmax;
+				bbox_.ymin = object.ymin;
+				bbox_.ymax = object.ymax;
+				if (detectSpecificObject_) {
+					if (bbox_.Class == targetObject_ && pixelCoords_.size() < sumFrame_) {
+						object_detection_yolo::PixelCoord_ frame_;
+						frame_.pixel_x = int(bbox_.xmin+((bbox_.xmax-bbox_.xmin)/2));
+						frame_.pixel_y = int(bbox_.ymin+((bbox_.ymax-bbox_.ymin)/2));
+						pixelCoords_.push_back(frame_);
+					}
+				}
+				msg.bounding_boxes.push_back(bbox_);
+			}
 		}
-	}
-	if (msg.bounding_boxes.size()>0) {
-		msg.image_header.frame_id = "/camera_top_rgb_frame";
-		msg.header.stamp = ros::Time::now();
-		bboxesPublisher_.publish(msg);
+		if (msg.bounding_boxes.size()>0) {
+			msg.image_header.frame_id = "/camera_top_rgb_frame";
+			msg.header.stamp = ros::Time::now();
+			bboxesPublisher_.publish(msg);
+		}
+
+		if (detectSpecificObject_ && pixelCoords_.size() == sumFrame_) {
+			int sum_x = 0;
+			int sum_y = 0;
+			int mean_x, mean_y;
+			for (int i=0; i<pixelCoords_.size(); i++) {
+				sum_x += pixelCoords_[i].pixel_x;
+				sum_y += pixelCoords_[i].pixel_y;
+			}
+			mean_x = int(sum_x/sumFrame_);
+			mean_y = int(sum_y/sumFrame_);
+			robot_control_msgs::Feedback msg;
+			msg.action = "detect";
+			msg.target = "object";
+			msg.mission_state = "success";
+			msg.results.object.name = targetObject_;
+			msg.results.vision.pixel_coords.pixel_x = mean_x;
+			msg.results.vision.pixel_coords.pixel_y = mean_y;
+			controlPublisher_.publish(msg);
+			detectSpecificObject_ = false;
+			pixelCoords_.clear();
+		}
 	}
 }
 

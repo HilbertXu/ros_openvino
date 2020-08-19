@@ -16,7 +16,11 @@ namespace object_detection_yolo {
 		cv::Mat image;
 		std_msgs::Header header;
 	} MatImageWithHeader_;
-		
+	
+	typedef struct {
+  int pixel_x, pixel_y;
+} PixelCoord_;
+
 	class YoloROS {
 	public:
 		/*!
@@ -111,6 +115,8 @@ namespace object_detection_yolo {
 		cv::Mat resizedBuff_[3];
 		int buffId_[3];
 		int buffIndex_ = 0;
+		std::vector<PixelCoord_> pixelCoords_;
+		int sumFrame_ = 6;
 
 		// demo 相关参数
 		char* demoPrefix_;
@@ -135,14 +141,14 @@ namespace object_detection_yolo {
 		YoloDetector detector;
 
 		//! detection target;
-		bool detectSpecificPose_ = false;
-		std::string targetPose_;
+		bool detectSpecificObject_ = false;
+		std::string targetObject_;
 
 		//! Openpose running on thread
 		std::thread yoloThread_;
 
 		//! control related flags
-		bool startEstimateFlag_;
+		bool startDetectFlag_;
 		bool pubMessageFlag_;
 
 		// 是否显示检测图片结果
@@ -151,6 +157,9 @@ namespace object_detection_yolo {
 		bool enableConsoleOutput_;
 		// opencv的waitkey Delay
 		int waitKeyDelay_;
+
+		// control node
+		bool underControl_;
 
 		// 初始化全局shared_mutex对象
 		boost::shared_mutex mutexImageCallback_;

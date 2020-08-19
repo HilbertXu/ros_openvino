@@ -116,6 +116,11 @@ namespace human_pose_estimation {
 			*/
 		bool publishEstimationImage(const cv::Mat& EstimationImage);
 
+		/*!
+			* Pose classification according to human skeleton
+			*/
+		void poseClassification(robot_vision_msgs::HumanPose &pose);
+
 		// Using
 		using CheckForHumanPosesActionServer = actionlib::SimpleActionServer<robot_vision_msgs::CheckForHumanPosesAction>;
 		using CheckForHumanPosesActionServerPtr = std::shared_ptr<CheckForHumanPosesActionServer>;
@@ -191,6 +196,12 @@ namespace human_pose_estimation {
 		bool enableConsoleOutput_;
 		// opencv的waitkey Delay
 		int waitKeyDelay_;
+
+		// gesture output flag
+		bool outputPoseFlag_;
+
+		// control node
+		bool underControl_;
 
 		// 初始化全局shared_mutex对象
 		boost::shared_mutex mutexImageCallback_;
