@@ -11,3 +11,5 @@ publisher:
 
 openpose_model:
   name: /human-pose-estimation.xml
+  pose_output: true
+

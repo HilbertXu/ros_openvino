@@ -17,3 +17,5 @@ image_view:
   enable_opencv: true
   wait_key_delay: 3
   enable_console_output: true
+
+under_control: false
