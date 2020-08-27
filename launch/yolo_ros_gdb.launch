@@ -2,7 +2,7 @@
 
 <launch>
 
-  <!-- Launch darknet ros with gdb launch prefix -->
+  <!-- Launch openvino yolo with gdb launch prefix -->
   <include file="$(find robot_vision_openvino)/launch/openpose_ros.launch">
     <arg name="launch_prefix"   value="gdb -ex run --args"/>
   </include>

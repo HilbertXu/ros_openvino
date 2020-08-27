@@ -10,7 +10,7 @@
 
   
   
-  <!-- Start darknet and ros wrapper -->
+  <!-- Start openvino_openpose node -->
   <node pkg="robot_vision_openvino" type="openpose_ros" name="openpose_ros" output="screen" launch-prefix="$(arg launch_prefix)">
     <param name="openpose_model/path"          value="$(arg openpose_model/path)" />
   </node>

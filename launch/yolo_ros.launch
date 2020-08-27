@@ -9,7 +9,7 @@
   <!-- Config and weights folder. -->
   <rosparam file="$(find robot_vision_openvino)/config/ros.yaml" command="load" ns="yolo_ros" />
   <rosparam file="$(find robot_vision_openvino)/config/yolov3.yaml" command="load" ns="yolo_ros" />
-  <!-- Start darknet and ros wrapper -->
+  <!-- Start openvino yolo node -->
   <node pkg="robot_vision_openvino" type="yolo_ros" name="yolo_ros" output="screen" launch-prefix="$(arg launch_prefix)">
     <param name="yolo_model/folder"          value="$(arg yolo_model/folder)" />
   </node>
