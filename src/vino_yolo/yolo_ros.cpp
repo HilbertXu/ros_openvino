@@ -433,11 +433,11 @@ void* YoloROS::publishInThread() {
 				msg.bounding_boxes.push_back(bbox_);
 			}
 		}
-		if (msg.bounding_boxes.size()>0) {
-			msg.image_header.frame_id = "/camera_top_rgb_frame";
-			msg.header.stamp = ros::Time::now();
-			bboxesPublisher_.publish(msg);
-		}
+		
+		msg.image_header.frame_id = "/camera_top_rgb_frame";
+		msg.header.stamp = ros::Time::now();
+		bboxesPublisher_.publish(msg);
+		
 
 		if (detectSpecificObject_ && pixelCoords_.size() == sumFrame_) {
 			int sum_x = 0;

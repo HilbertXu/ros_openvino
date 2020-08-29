@@ -480,9 +480,9 @@ void* OpenposeROS::publishInThread() {
 			poses_msg.poses.push_back(pose_msg);
 
 		}
-		if (poses_msg.poses.size() > 0) {
-			posesPublisher_.publish(poses_msg);
-		}
+		
+		posesPublisher_.publish(poses_msg);
+		
 	}
 }
 
