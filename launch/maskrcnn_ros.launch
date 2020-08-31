@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+  <!-- Console launch prefix -->
+  <arg name="launch_prefix" default=""/>
+  
+  <!-- Weights folder -->>
+  <arg name="maskrcnn_model/folder" default="$(find robot_vision_openvino)/models/mask_rcnn"/>
+
+  <!-- Config and weights folder. -->
+  <rosparam file="$(find robot_vision_openvino)/config/ros.yaml" command="load" ns="maskrcnn_ros" />
+  <rosparam file="$(find robot_vision_openvino)/config/mask_rcnn.yaml" command="load" ns="maskrcnn_ros" />
+  <!-- Start openvino yolo node -->
+  <node pkg="robot_vision_openvino" type="maskrcnn_ros" name="maskrcnn_ros" output="screen" launch-prefix="$(arg launch_prefix)">
+    <param name="maskrcnn_model/folder"          value="$(arg maskrcnn_model/folder)" />
+  </node>
+
+ <!--<node name="republish" type="republish" pkg="image_transport" output="screen" 	args="compressed in:=/front_camera/image_raw raw out:=/camera/image_raw" /> -->
+</launch>
