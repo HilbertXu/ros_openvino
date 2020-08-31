@@ -1,6 +1,6 @@
 subscribers:
   camera_reading:
-    topic: /astra/rgb/image_raw
+    topic: /camera_top/rgb/image_raw
     queue_size: 1
 
   control_node:

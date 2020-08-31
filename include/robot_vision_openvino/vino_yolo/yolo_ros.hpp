@@ -19,7 +19,7 @@ namespace object_detection_yolo {
 	
 	typedef struct {
   int pixel_x, pixel_y;
-} PixelCoord_;
+	} PixelCoord_;
 
 	class YoloROS {
 	public:
