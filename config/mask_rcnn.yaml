@@ -9,7 +9,11 @@ publisher:
     queue_size: 1
     latch: false
 
-yolo_model:
-  name: /mask_rcnn_resnet50_atrous_coco
+maskrcnn_model:
+  name: /mask_rcnn_resnet50_atrous_coco.xml
+  label: /coco.names
+  output_name: "reshape_do_2d"
+  mask_name: "masks"
+
   
 
