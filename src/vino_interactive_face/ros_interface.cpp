@@ -71,7 +71,7 @@ bool ROSInterface::readParameters() {
 
   nodeHandle_.param("face_detection/enable",          enableFaceDetection_,      true);
   nodeHandle_.param("face_detection/model_name",      faceModelName_,            std::string("/face-detection-adas-0001.xml"));
-  nodeHandle_.param("face_detection/batch_size",      faceModelBatchSize_,       1);
+  nodeHandle_.param("face_detection/batch_size",      faceModelBatchSize_,       16);
   nodeHandle_.param("face_detection/raw_output",      faceModelRawOutput_,       false);
   nodeHandle_.param("face_detection/async",           faceModelAsync_,           false);
   nodeHandle_.param("face_detection/bb_enlarge_coef", bb_enlarge_coef,           double(1.2));
@@ -80,33 +80,33 @@ bool ROSInterface::readParameters() {
 
   nodeHandle_.param("age_gender/enable",           enableAgeGender_,          false);
   nodeHandle_.param("age_gender/model_name",       ageModelName_,             std::string("/age-gender-recognition-retail-0013.xml"));
-  nodeHandle_.param("age_gender/batch_size",       ageModelBatchSize_,        1);
+  nodeHandle_.param("age_gender/batch_size",       ageModelBatchSize_,        16);
   nodeHandle_.param("age_gender/raw_output",       ageModelRawOutput_,        false);
   nodeHandle_.param("age_gender/async",            ageModelAsync_,            false);
 
   nodeHandle_.param("head_pose/enable",            enableHeadPose_,           false);
   nodeHandle_.param("head_pose/model_name",        headPoseModelName_,        std::string("/head-pose-estimation-adas-0001.xml"));
-  nodeHandle_.param("head_pose/batch_size",        headPoseModelBatchSize_,   1);
+  nodeHandle_.param("head_pose/batch_size",        headPoseModelBatchSize_,   16);
   nodeHandle_.param("head_pose/raw_output",        headPoseModelRawOutput_,   false);
   nodeHandle_.param("head_pose/async",             headPoseModelAsync_,       false);
 
   nodeHandle_.param("emotions/enable",             enableEmotions_,           false);
   nodeHandle_.param("emotions/model_name",         emotionsModelName_,        std::string("/emotions-recognition-retail-0003.xml"));
-  nodeHandle_.param("emotions/batch_size",         emotionsModelBatchSize_,   1);
+  nodeHandle_.param("emotions/batch_size",         emotionsModelBatchSize_,   16);
   nodeHandle_.param("emotions/raw_output",         emotionsModelRawOutput_,   false);
   nodeHandle_.param("emotions/async",              emotionsModelAsync_,       false);
 
-  nodeHandle_.param("facial_landmarks/enable",     enableFaceDetection_,      false);
+  nodeHandle_.param("facial_landmarks/enable",     enableFacialLandmarks_,    false);
   nodeHandle_.param("facial_landmarks/model_name", facialMarkModelName_,      std::string("/facial-landmarks-35-adas-0002.xml"));
-  nodeHandle_.param("facial_landmarks/batch_size", facialMarkModelBatchSize_, 1);
+  nodeHandle_.param("facial_landmarks/batch_size", facialMarkModelBatchSize_, 16);
   nodeHandle_.param("facial_landmarks/raw_output", facialMarkModelRawOutput_, false);
   nodeHandle_.param("facial_landmarks/async",      facialMarkModelAsync_,     false);
 
-  faceModelPath_       = modelFolder_.append(faceModelName_);
-  ageModelPath_        = modelFolder_.append(ageModelName_);
-  headPoseModelPath_   = modelFolder_.append(headPoseModelName_);
-  emotionsModelPath_   = modelFolder_.append(emotionsModelName_);
-  facialMarkModelPath_ = modelFolder_.append(facialMarkModelName_);
+  faceModelPath_       = modelFolder_ + (faceModelName_);
+  ageModelPath_        = modelFolder_ + (ageModelName_);
+  headPoseModelPath_   = modelFolder_ + (headPoseModelName_);
+  emotionsModelPath_   = modelFolder_ + (emotionsModelName_);
+  facialMarkModelPath_ = modelFolder_ + (facialMarkModelName_);
 
   if (!underControl_) {
     FLAG_start_infer = true;
@@ -165,8 +165,41 @@ void ROSInterface::init() {
 	// bboxesPublisher_ = 
 	//     nodeHandle_.advertise<robot_vision_msgs::BoundingBoxes>(pubBboxesTopicName, pubBboxesQueueSize, pubBboxesLatch);
 
+  // 初始化各个检测器
+  faceDetector.init(faceModelPath_, targetDevice_, faceModelBatchSize_, 
+                             false, faceModelAsync_, 0.5, faceModelRawOutput_, 
+                             static_cast<float>(bb_enlarge_coef), static_cast<float>(dx_coef), 
+                             static_cast<float>(dy_coef),
+                             true);
+  ageGenderDetector.init(ageModelPath_, targetDevice_, ageModelBatchSize_,
+                                       true, ageModelAsync_, ageModelRawOutput_,
+                                       enableAgeGender_);
+  headPoseDetector.init(headPoseModelPath_, targetDevice_, headPoseModelBatchSize_,
+                                       true, headPoseModelAsync_, headPoseModelRawOutput_,
+                                       enableHeadPose_);
+  emotionsDetector.init(emotionsModelPath_, targetDevice_, emotionsModelBatchSize_,
+                                       true, emotionsModelAsync_, emotionsModelRawOutput_,
+                                       enableEmotions_);
+  facialLandmarksDetector.init(facialMarkModelPath_, targetDevice_, facialMarkModelBatchSize_,
+                                       true, facialMarkModelAsync_, facialMarkModelRawOutput_,
+                                       enableFacialLandmarks_);
+
+  ROS_INFO("[ROSInterface] Loading device: %s", inferenceEngine_.GetVersions("CPU"));
+
+  // 将模型加载至推理设备(CPU)
+  // 此处true表示所有推理器的处理batch size均为可变值，因为每张图像中的人脸数无法确定
+  // 考虑到每次设定batch size可能造成运行速度的下降，后期可以考虑改为设定一个较大的batch size (8 or 16)
+  Load(faceDetector).into(inferenceEngine_, targetDevice_, false);
+  Load(ageGenderDetector).into(inferenceEngine_, targetDevice_, true);
+  Load(headPoseDetector).into(inferenceEngine_, targetDevice_, true);
+  Load(emotionsDetector).into(inferenceEngine_, targetDevice_, true);
+  Load(facialLandmarksDetector).into(inferenceEngine_, targetDevice_, true);
+
+  visualizer = std::make_shared<Visualizer>(cv::Size(frameWidth_, frameHeight_));
+
   // start Yolo thread
 	mainThread_ = std::thread(&ROSInterface::mainFunc, this);
+
 }
 
 void ROSInterface::controlCallback(const robot_control_msgs::Mission msg) {
@@ -222,6 +255,10 @@ void ROSInterface::cameraCallback(const sensor_msgs::ImageConstPtr& msg) {
 	return;
 }
 
+void ROSInterface::showImageCV(cv::Mat image) {
+	cv::imshow("Interactive Face ROS on CPU", image);
+}
+
 // 抓取线程，从临界区中抓取数据，并写入缓存区
 void* ROSInterface::fetchInThread() {
 	{
@@ -249,10 +286,9 @@ void* ROSInterface::displayInThread(void* ptr) {
   return 0;
 }
 
-void* ROSInterface::estimateInThread(FaceDetection faceDetector, AgeGenderDetection ageGenderDetector, 
-                                     HeadPoseDetection headPoseDetector, EmotionsDetection emotionsDetector, 
-                                     FacialLandmarksDetection facialLandmarksDetector) {
+void* ROSInterface::estimateInThread() {
 	if (FLAG_start_infer) {
+    size_t id = 0;
     faceDetector.enqueue(buff_[(buffIndex_+2)%3]);
     faceDetector.submitRequest();
     faceDetector.wait();
@@ -290,9 +326,9 @@ void* ROSInterface::estimateInThread(FaceDetection faceDetector, AgeGenderDetect
       cv::Rect rect = result.location & cv::Rect(0, 0, frameWidth_, frameHeight_);
 
       Face::Ptr face;
-      if (!FLAGS_no_smooth) {
+      if (!FLAG_no_smooth) {
           face = matchFace(rect, prev_faces);
-          float intensity_mean = calcMean(prev_frame(rect));
+          float intensity_mean = calcMean(buff_[(buffIndex_+2)%3](rect));
 
           if ((face == nullptr) ||
               ((std::abs(intensity_mean - face->_intensity_mean) / face->_intensity_mean) > 0.07f)) {
@@ -335,44 +371,22 @@ void* ROSInterface::estimateInThread(FaceDetection faceDetector, AgeGenderDetect
 
       faces.push_back(face);
     }
-
+    visualizer->draw(buff_[(buffIndex_+2)%3], faces);
+    //publishInThread();
+    if (enableConsoleOutput_) {
+			printf("\033[2J");
+			printf("\033[1;1H");
+			printf("\nFPS:%.1f\n", fps_);
+		}
   }
 }
 
 void ROSInterface::mainFunc() {
-  // 初始化推理引擎
-  InferenceEngine::Core inferenceEngine_;
-  // 初始化各个检测器
-  FaceDetection faceDetector(faceModelPath_, targetDevice_, faceModelBatchSize_, 
-                             true, faceModelAsync_, 0.5, faceModelRawOutput_, 
-                             static_cast<float>(bb_enlarge_coef), static_cast<float>(dx_coef), 
-                             static_cast<float>(dy_coef),
-                             true);
-  AgeGenderDetection ageGenderDetector(ageModelPath_, targetDevice_, ageModelBatchSize_,
-                                       true, ageModelAsync_, ageModelRawOutput_,
-                                       enableAgeGender_);
-  HeadPoseDetection headPoseDetector(headPoseModelPath_, targetDevice_, headPoseModelBatchSize_,
-                                       true, headPoseModelAsync_, headPoseModelRawOutput_,
-                                       enableHeadPose_);
-  EmotionsDetection emotionsDetector(emotionsModelPath_, targetDevice_, emotionsModelBatchSize_,
-                                       true, emotionsModelAsync_, emotionsModelRawOutput_,
-                                       enableEmotions_);
-  FacialLandmarksDetection facialLandmarksDetector(facialMarkModelPath_, targetDevice_, facialMarkModelBatchSize_,
-                                       true, facialMarkModelAsync_, facialMarkModelRawOutput_,
-                                       enableFacialLandmarks_);
-  ROS_INFO("[ROSInterface] Loading device: %s", inferenceEngine_.GetVersions("CPU"));
-
-  // 将模型加载至推理设备(CPU)
-  // 此处true表示所有推理器的处理batch size均为可变值，因为每张图像中的人脸数无法确定
-  // 考虑到每次设定batch size可能造成运行速度的下降，后期可以考虑改为设定一个较大的batch size (8 or 16)
-  Load(faceDetector).into(inferenceEngine_, targetDevice_, true);
-  Load(ageGenderDetector).into(inferenceEngine_, targetDevice_, true);
-  Load(headPoseDetector).into(inferenceEngine_, targetDevice_, true);
-  Load(emotionsDetector).into(inferenceEngine_, targetDevice_, true);
-  Load(facialLandmarksDetector).into(inferenceEngine_, targetDevice_, true);
-
   isFaceAnalyticsEnabled = ageGenderDetector.enabled() || headPoseDetector.enabled() ||
                                 emotionsDetector.enabled() || facialLandmarksDetector.enabled();
+  if (emotionsDetector.enabled()) {
+    visualizer->enableEmotionBar(emotionsDetector.emotionsVec);
+  }
 
   const auto wait_duration = std::chrono::milliseconds(2000);
 	while (!getImageStatus()) {
@@ -404,10 +418,53 @@ void ROSInterface::mainFunc() {
 
 	// 初始化显示图像的窗口
 	if (!demoPrefix_ && viewImage_) {
-		cv::namedWindow("YoloV3 ROS on CPU", cv::WINDOW_NORMAL);
-		cv::moveWindow("YoloV3 ROS on CPU", 0, 0);
-		cv::resizeWindow("YoloV3 ROS on CPU", 640, 480);
+		cv::namedWindow("Interactive Face ROS on CPU", cv::WINDOW_NORMAL);
+		cv::moveWindow("Interactive Face ROS on CPU", 0, 0);
+		cv::resizeWindow("Interactive Face ROS on CPU", 640, 480);
 	}
 	
 	demoTime_ = what_time_is_it_now();
+
+  while(!demoDone_) {
+    // buffIndex_在(0, 1, 2)间循环
+		buffIndex_ = (buffIndex_ + 1) % 3;
+		// 为fetchInThread函数生成一个线程
+		fetch_thread = std::thread(&ROSInterface::fetchInThread, this);
+		// 为estimateInThread函数生成一个线程
+		estimate_thread = std::thread(&ROSInterface::estimateInThread,this);
+		// 计算fps和时间
+		fps_ = 1. /(what_time_is_it_now() - demoTime_);
+		demoTime_ = what_time_is_it_now();
+
+		// 显示检测图片
+		if (viewImage_) {
+			displayInThread(0);
+		} 
+
+		// 等待fetch_thread 和 estimate_thread完成
+		fetch_thread.join();
+		estimate_thread.join();
+		// 计数
+		++count;
+		// 如果节点停止运行，终止demo
+		if (!isNodeRunning()) {
+			demoDone_ = true;
+		}
+  }
+}
+
+MatImageWithHeader_ ROSInterface::getMatImageWithHeader() {
+	cv::Mat rosImage = camImageCopy_.clone();
+	MatImageWithHeader_ imageWithHeader = {.image=rosImage, .header=imageHeader_};
+	return imageWithHeader;
+}
+
+bool ROSInterface::getImageStatus(void) {
+	boost::shared_lock<boost::shared_mutex> lock(mutexImageStatus_);
+	return imageStatus_;
+}
+
+bool ROSInterface::isNodeRunning(void) {
+	boost::shared_lock<boost::shared_mutex> lock(mutexNodeStatus_);
+	return isNodeRunning_;
 }
