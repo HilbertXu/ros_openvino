@@ -28,6 +28,8 @@
 
 using namespace InferenceEngine;
 
+BaseDetection::BaseDetection() {}
+
 BaseDetection::BaseDetection(const std::string &topoName,
                              const std::string &pathToModel,
                              const std::string &deviceForInference,
@@ -81,6 +83,8 @@ void BaseDetection::printPerformanceCounts(std::string fullDeviceName) {
     ::printPerformanceCounts(*request, std::cout, fullDeviceName, false);
 }
 
+FaceDetection::FaceDetection() {}
+
 
 FaceDetection::FaceDetection(const std::string &pathToModel,
                              const std::string &deviceForInference,
@@ -93,6 +97,36 @@ FaceDetection::FaceDetection(const std::string &pathToModel,
       network_input_width(0), network_input_height(0),
       bb_enlarge_coefficient(bb_enlarge_coefficient), bb_dx_coefficient(bb_dx_coefficient),
       bb_dy_coefficient(bb_dy_coefficient), resultsFetched(false) {}
+
+void FaceDetection::init(const std::string &pathToModel,
+                         const std::string &deviceForInference,
+                         int maxBatch, bool isBatchDynamic, bool isAsync,
+                         double detectionThreshold, bool doRawOutputMessages,
+                         float bb_enlarge_coefficient, float bb_dx_coefficient, float bb_dy_coefficient, bool isFaceEnabled) {
+    // set parameters for base class
+    BaseDetection::topoName = "Face Detection";
+    BaseDetection::pathToModel = pathToModel;
+    BaseDetection::deviceForInference = deviceForInference;
+    BaseDetection::maxBatch = maxBatch;
+    BaseDetection::isBatchDynamic = isBatchDynamic;
+    BaseDetection::isAsync = isAsync;
+    BaseDetection::doRawOutputMessages = doRawOutputMessages;
+    BaseDetection::_enabled = isFaceEnabled;
+
+    // Set parameters for Face detection class
+    FaceDetection::detectionThreshold = detectionThreshold;
+    FaceDetection::maxProposalCount = 0;
+    FaceDetection::objectSize = 0;
+    FaceDetection::enquedFrames = 0;
+    FaceDetection::width = 0;
+    FaceDetection::height = 0;
+    FaceDetection::network_input_width = 0;
+    FaceDetection::network_input_height = 0;
+    FaceDetection::bb_enlarge_coefficient = bb_enlarge_coefficient;
+    FaceDetection::bb_dx_coefficient = bb_dx_coefficient;
+    FaceDetection::bb_dy_coefficient = bb_dy_coefficient;
+    FaceDetection::resultsFetched = false;
+}
 
 void FaceDetection::submitRequest() {
     if (!enquedFrames) return;
@@ -282,6 +316,7 @@ void FaceDetection::fetchResults() {
     }
 }
 
+AgeGenderDetection::AgeGenderDetection() {}
 
 AgeGenderDetection::AgeGenderDetection(const std::string &pathToModel,
                                        const std::string &deviceForInference,
@@ -289,6 +324,23 @@ AgeGenderDetection::AgeGenderDetection(const std::string &pathToModel,
                                        bool isAgeGenderEnabled)
     : BaseDetection("Age/Gender", pathToModel, deviceForInference, maxBatch, isBatchDynamic, isAsync, doRawOutputMessages, isAgeGenderEnabled),
       enquedFaces(0) {
+}
+
+void AgeGenderDetection::init(const std::string &pathToModel,
+          const std::string &deviceForInference,
+          int maxBatch, bool isBatchDynamic, bool isAsync, bool   doRawOutputMessages,
+          bool isAgeGenderEnabled) {
+    // set parameters for base class
+    BaseDetection::topoName = "Age/Gender";
+    BaseDetection::pathToModel = pathToModel;
+    BaseDetection::deviceForInference = deviceForInference;
+    BaseDetection::maxBatch = maxBatch;
+    BaseDetection::isBatchDynamic = isBatchDynamic;
+    BaseDetection::isAsync = isAsync;
+    BaseDetection::doRawOutputMessages = doRawOutputMessages;
+    BaseDetection::_enabled = isAgeGenderEnabled;
+    // Set parameters for Age gender class
+    AgeGenderDetection::enquedFaces = 0;
 }
 
 void AgeGenderDetection::submitRequest()  {
@@ -372,6 +424,7 @@ CNNNetwork AgeGenderDetection::read(const InferenceEngine::Core& ie) {
     return network;
 }
 
+HeadPoseDetection::HeadPoseDetection() {}
 
 HeadPoseDetection::HeadPoseDetection(const std::string &pathToModel,
                                      const std::string &deviceForInference,
@@ -379,6 +432,26 @@ HeadPoseDetection::HeadPoseDetection(const std::string &pathToModel,
                                      bool isHeadPoseEnabled)
     : BaseDetection("Head Pose", pathToModel, deviceForInference, maxBatch, isBatchDynamic, isAsync, doRawOutputMessages, isHeadPoseEnabled),
       outputAngleR("angle_r_fc"), outputAngleP("angle_p_fc"), outputAngleY("angle_y_fc"), enquedFaces(0) {
+}
+
+void HeadPoseDetection::init(const std::string &pathToModel,
+                             const std::string &deviceForInference,
+                             int maxBatch, bool isBatchDynamic, bool isAsync, bool doRawOutputMessages,
+                             bool isHeadPoseEnabled) {
+    // set parameters for base class
+    BaseDetection::topoName = "Head Pose";
+    BaseDetection::pathToModel = pathToModel;
+    BaseDetection::deviceForInference = deviceForInference;
+    BaseDetection::maxBatch = maxBatch;
+    BaseDetection::isBatchDynamic = isBatchDynamic;
+    BaseDetection::isAsync = isAsync;
+    BaseDetection::doRawOutputMessages = doRawOutputMessages;
+    BaseDetection::_enabled = isHeadPoseEnabled;
+    // Set parameters for Head pose detection class
+    HeadPoseDetection::outputAngleR = "angle_r_fc";
+    HeadPoseDetection::outputAngleP = "angle_p_fc";
+    HeadPoseDetection::outputAngleY = "angle_y_fc";
+    HeadPoseDetection::enquedFaces = 0;
 }
 
 void HeadPoseDetection::submitRequest()  {
@@ -464,12 +537,31 @@ CNNNetwork HeadPoseDetection::read(const InferenceEngine::Core& ie) {
     return network;
 }
 
+EmotionsDetection::EmotionsDetection() {}
+
 EmotionsDetection::EmotionsDetection(const std::string &pathToModel,
                                      const std::string &deviceForInference,
                                      int maxBatch, bool isBatchDynamic, bool isAsync, bool doRawOutputMessages,
                                      bool isEmotionsEnabled)
               : BaseDetection("Emotions Recognition", pathToModel, deviceForInference, maxBatch, isBatchDynamic, isAsync, doRawOutputMessages,isEmotionsEnabled),
                 enquedFaces(0) {
+}
+
+void EmotionsDetection::init(const std::string &pathToModel,
+                             const std::string &deviceForInference,
+                             int maxBatch, bool isBatchDynamic, bool isAsync, bool doRawOutputMessages,
+                             bool isEmotionsEnabled) {
+    // set parameters for base class
+    BaseDetection::topoName = "Emotions Recognition";
+    BaseDetection::pathToModel = pathToModel;
+    BaseDetection::deviceForInference = deviceForInference;
+    BaseDetection::maxBatch = maxBatch;
+    BaseDetection::isBatchDynamic = isBatchDynamic;
+    BaseDetection::isAsync = isAsync;
+    BaseDetection::doRawOutputMessages = doRawOutputMessages;
+    BaseDetection::_enabled = isEmotionsEnabled;
+    // Set parameters for Emotions detection class
+    EmotionsDetection::enquedFaces = 0;
 }
 
 void EmotionsDetection::submitRequest() {
@@ -578,11 +670,30 @@ CNNNetwork EmotionsDetection::read(const InferenceEngine::Core& ie) {
 }
 
 
+FacialLandmarksDetection::FacialLandmarksDetection() {}
+
 FacialLandmarksDetection::FacialLandmarksDetection(const std::string &pathToModel,
                                                    const std::string &deviceForInference,
                                                    int maxBatch, bool isBatchDynamic, bool isAsync, bool doRawOutputMessages,bool isFacialLandmarkcEnabled)
     : BaseDetection("Facial Landmarks", pathToModel, deviceForInference, maxBatch, isBatchDynamic, isAsync, doRawOutputMessages, isFacialLandmarkcEnabled),
       outputFacialLandmarksBlobName("align_fc3"), enquedFaces(0) {
+}
+
+void FacialLandmarksDetection::init(const std::string &pathToModel,
+                                    const std::string &deviceForInference,
+                                    int maxBatch, bool isBatchDynamic, bool isAsync, bool doRawOutputMessages,bool isFacialLandmarkcEnabled) {
+    // set parameters for base class
+    BaseDetection::topoName = "Emotions Recognition";
+    BaseDetection::pathToModel = pathToModel;
+    BaseDetection::deviceForInference = deviceForInference;
+    BaseDetection::maxBatch = maxBatch;
+    BaseDetection::isBatchDynamic = isBatchDynamic;
+    BaseDetection::isAsync = isAsync;
+    BaseDetection::doRawOutputMessages = doRawOutputMessages;
+    BaseDetection::_enabled = isFacialLandmarkcEnabled;
+    // Set parameters for Facial landmarks class
+    FacialLandmarksDetection::outputFacialLandmarksBlobName = "align_fc3";
+    FacialLandmarksDetection::enquedFaces = 0;
 }
 
 void FacialLandmarksDetection::submitRequest() {
