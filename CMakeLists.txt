@@ -115,6 +115,13 @@ set(MASKRCNN_LIB_FILES
   src/vino_maskrcnn/maskrcnn_ros.cpp
 ) 
 
+set(INTERACTIVE_FACE_LIB_FILES
+  src/vino_interactive_face/detector.cpp
+  src/vino_interactive_face/face.cpp
+  src/vino_interactive_face/visualizer.cpp
+  src/vino_interactive_face/ros_interface.cpp
+) 
+
 catkin_package(
   INCLUDE_DIRS 
    include
@@ -154,6 +161,11 @@ add_library(maskrcnn_ros_lib SHARED
   ${MASKRCNN_LIB_FILES}
 )
 
+add_library(interactive_face_ros_lib SHARED
+  ${INTERACTIVE_FACE_LIB_FILES}
+)
+
+
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
@@ -167,6 +179,8 @@ add_executable(openpose_ros src/human_pose_estimate_main.cpp)
 add_executable(yolo_ros src/object_detection_main.cpp)
 
 add_executable(maskrcnn_ros src/semantic_segmentation_main.cpp)
+
+add_executable(interactive_face_ros src/interactive_face_recognition_main.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -219,6 +233,21 @@ target_link_libraries(maskrcnn_ros_lib
 target_link_libraries(maskrcnn_ros
   maskrcnn_ros_lib
 )
+
+target_link_libraries(interactive_face_ros_lib
+  m
+  pthread
+  stdc++
+  ${ngraph_LIBS}
+  ${Boost_LIBRARIED}
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
+)
+
+target_link_libraries(interactive_face_ros
+  interactive_face_ros_lib
+)
+
 
 #############
 ## Install ##
