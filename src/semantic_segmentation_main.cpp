@@ -1,7 +1,7 @@
 /*
  * semantic_segmentation_main.cpp
  * 
- *  Created on: July 31th, 2020
+ *  Created on: Aug 31th, 2020
  *      Author: Hilbert Xu
  *   Institute: Mustar Robot
  */
