@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<launch>
+
+  <!-- Launch openvino yolo with gdb launch prefix -->
+  <include file="$(find robot_vision_openvino)/launch/interactive_face_ros.launch">
+    <arg name="launch_prefix"   value="gdb -ex run --args"/>
+  </include>
+
+</launch>
