@@ -35,12 +35,12 @@ struct BaseDetection {
     std::string topoName;
     std::string pathToModel;
     std::string deviceForInference;
-    const size_t maxBatch;
+    size_t maxBatch;
     bool isBatchDynamic;
-    const bool isAsync;
+    bool isAsync;
     mutable bool enablingChecked;
     mutable bool _enabled;
-    const bool doRawOutputMessages;
+    bool doRawOutputMessages;
     
     BaseDetection();
 
@@ -83,6 +83,7 @@ struct FaceDetection : BaseDetection {
     float bb_dy_coefficient;
     bool resultsFetched;
     std::vector<Result> results;
+    FaceDetection();
 
     FaceDetection(const std::string &pathToModel,
                   const std::string &deviceForInference,
@@ -93,6 +94,15 @@ struct FaceDetection : BaseDetection {
                   bool isFaceEnabled);
 
     InferenceEngine::CNNNetwork read(const InferenceEngine::Core& ie) override;
+
+    void init(const std::string &pathToModel,
+              const std::string &deviceForInference,
+              int maxBatch, bool isBatchDynamic, bool isAsync,
+              double detectionThreshold, bool doRawOutputMessages,
+              float bb_enlarge_coefficient, float bb_dx_coefficient,
+              float bb_dy_coefficient,
+              bool isFaceEnabled);
+
     void submitRequest() override;
 
     void enqueue(const cv::Mat &frame);
@@ -110,11 +120,19 @@ struct AgeGenderDetection : BaseDetection {
     std::string outputGender;
     size_t enquedFaces;
 
+    AgeGenderDetection();
+
     AgeGenderDetection(const std::string &pathToModel,
                        const std::string &deviceForInference,
                        int maxBatch, bool isBatchDynamic, bool isAsync,
                        bool doRawOutputMessages,
                        bool isAgeGenderEnabled);
+
+    void init(const std::string &pathToModel,
+         const std::string &deviceForInference,
+         int maxBatch, bool isBatchDynamic, bool isAsync,
+         bool doRawOutputMessages,
+         bool isAgeGenderEnabled);
 
     InferenceEngine::CNNNetwork read(const InferenceEngine::Core& ie) override;
     void submitRequest() override;
@@ -137,11 +155,19 @@ struct HeadPoseDetection : BaseDetection {
     size_t enquedFaces;
     cv::Mat cameraMatrix;
 
+    HeadPoseDetection();
+
     HeadPoseDetection(const std::string &pathToModel,
                       const std::string &deviceForInference,
                       int maxBatch, bool isBatchDynamic, bool isAsync,
                       bool doRawOutputMessages,
                       bool isHeadPoseEnabled);
+
+    void init(const std::string &pathToModel,
+         const std::string &deviceForInference,
+         int maxBatch, bool isBatchDynamic, bool isAsync,
+         bool doRawOutputMessages,
+         bool isHeadPoseEnabled);
 
     InferenceEngine::CNNNetwork read(const InferenceEngine::Core& ie) override;
     void submitRequest() override;
@@ -155,11 +181,19 @@ struct EmotionsDetection : BaseDetection {
     std::string outputEmotions;
     size_t enquedFaces;
 
+    EmotionsDetection();
+
     EmotionsDetection(const std::string &pathToModel,
                       const std::string &deviceForInference,
                       int maxBatch, bool isBatchDynamic, bool isAsync,
                       bool doRawOutputMessages,
                       bool isEmotionsEnabled);
+
+    void init(const std::string &pathToModel,
+         const std::string &deviceForInference,
+         int maxBatch, bool isBatchDynamic, bool isAsync,
+         bool doRawOutputMessages,
+         bool isEmotionsEnabled);
 
     InferenceEngine::CNNNetwork read(const InferenceEngine::Core& ie) override;
     void submitRequest() override;
@@ -177,11 +211,19 @@ struct FacialLandmarksDetection : BaseDetection {
     std::vector<std::vector<float>> landmarks_results;
     std::vector<cv::Rect> faces_bounding_boxes;
 
+    FacialLandmarksDetection();
+
     FacialLandmarksDetection(const std::string &pathToModel,
                              const std::string &deviceForInference,
                              int maxBatch, bool isBatchDynamic, bool isAsync,
                              bool doRawOutputMessages,
                              bool isFacialLandmarkcEnabled);
+    
+    void init(const std::string &pathToModel,
+         const std::string &deviceForInference,
+         int maxBatch, bool isBatchDynamic, bool isAsync,
+         bool doRawOutputMessages,
+         bool isFacialLandmarkcEnabled);
 
     InferenceEngine::CNNNetwork read(const InferenceEngine::Core& ie) override;
     void submitRequest() override;

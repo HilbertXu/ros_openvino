@@ -105,6 +105,7 @@ private:
   int sumFrame_ = 6;
   // 人脸检测结果
   std::list<Face::Ptr> faces;
+  Visualizer::Ptr visualizer;
 
   // demo 相关参数
   char* demoPrefix_;
@@ -139,10 +140,14 @@ private:
   // 判断在检测人脸的基础上，是否还对人脸进行进一步处理
   bool isFaceAnalyticsEnabled;
 
+  // 初始化推理引擎
+  InferenceEngine::Core inferenceEngine_;
+
   // parameters for detectors
   std::string targetDevice_;
 
   // Face detection model
+  FaceDetection faceDetector;
   bool enableFaceDetection_;
   std::string faceModelPath_;
   int faceModelBatchSize_;
@@ -153,6 +158,7 @@ private:
   double dy_coef;
 
   // Age-gender model
+  AgeGenderDetection ageGenderDetector;
   bool enableAgeGender_;
   std::string ageModelPath_;
   int ageModelBatchSize_;
@@ -160,6 +166,7 @@ private:
   bool ageModelAsync_;
   
   // Head pose estimation model
+  HeadPoseDetection headPoseDetector;
   bool enableHeadPose_;
   std::string headPoseModelPath_;
   int headPoseModelBatchSize_;
@@ -167,6 +174,7 @@ private:
   bool headPoseModelAsync_;
 
   // Emotions recognition
+  EmotionsDetection emotionsDetector;
   bool enableEmotions_;
   std::string emotionsModelPath_;
   int emotionsModelBatchSize_;
@@ -174,6 +182,7 @@ private:
   bool emotionsModelAsync_;
   
   // Facial landmarks
+  FacialLandmarksDetection facialLandmarksDetector;
   bool enableFacialLandmarks_;
   std::string facialMarkModelPath_;
   int facialMarkModelBatchSize_;
@@ -247,9 +256,7 @@ private:
   void* displayInThread(void* ptr);
 
   // openpose推理线程
-  void* estimateInThread(FaceDetection faceDetector, AgeGenderDetection ageGenderDetector, 
-                         HeadPoseDetection headPoseDetector, EmotionsDetection emotionsDetector, 
-                         FacialLandmarksDetection facialLandmarksDetector);
+  void* estimateInThread();
 
   // 主函数
   void mainFunc();
