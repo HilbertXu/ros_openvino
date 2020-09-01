@@ -1,0 +1,48 @@
+base_detector:
+  target_device: CPU
+  model_folder: /home/kamerider/mustar_robot/src/robot_vision/robot_vision_openvino/models/interactive_face
+  no_smooth: false
+
+face_detection:
+  enable: true
+  model_name: /face-detection-adas-0001.xml
+  batch_size: 16
+  raw_output: false
+  async: false
+  bb_enlarge_coef: 1.2
+  dx_coef: 1
+  dy_coef: 1
+
+age_gender:
+  enable: true
+  model_name: /age-gender-recognition-retail-0013.xml
+  batch_size: 16
+  raw_output: false
+  async: false
+
+head_pose:
+  enable: true
+  model_name: /head-pose-estimation-adas-0001.xml
+  batch_size: 16
+  raw_output: false
+  async: false
+
+emotions: 
+  enable: true
+  model_name: /emotions-recognition-retail-0003.xml
+  batch_size: 16
+  raw_output: false
+  async: false
+
+facial_landmarks:
+  enable: true
+  model_name: /facial-landmarks-35-adas-0002.xml
+  batch_size: 16
+  raw_output: false
+  async: false
+
+publisher:
+  detection_image:
+    topic: /interactive_face/detection_image
+    queue_size: 1
+    latch: true
