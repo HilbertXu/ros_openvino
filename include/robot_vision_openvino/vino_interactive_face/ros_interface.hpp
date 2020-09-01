@@ -45,6 +45,10 @@
 #include <robot_control_msgs/Results.h>
 #include <robot_control_msgs/Feedback.h>
 
+// Robot vision msgs
+#include <robot_vision_msgs/FaceResults.h>
+#include <robot_vision_msgs/FaceResult.h>
+
 // Interactive face recognition headers
 #include <robot_vision_openvino/vino_interactive_face/detector.hpp>
 #include <robot_vision_openvino/vino_interactive_face/face.hpp>
@@ -86,6 +90,7 @@ private:
 
   //! Publisher of human pose image
   ros::Publisher detectionImagePublisher_;
+  ros::Publisher faceResultsPublisher_;
 
   // 临界读写区，储存从相机话题中获取到的图片以及检测结果图片
   // 通过加锁的方式来获取进行读写操作的权限
@@ -104,6 +109,7 @@ private:
   std::vector<PixelCoord_> pixelCoords_;
   int sumFrame_ = 6;
   // 人脸检测结果
+  robot_vision_msgs::FaceResults detectionMsg;
   std::list<Face::Ptr> faces;
   Visualizer::Ptr visualizer;
 

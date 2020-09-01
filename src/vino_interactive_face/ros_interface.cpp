@@ -137,9 +137,9 @@ void ROSInterface::init() {
   int pubControlQueueSize;
   bool pubControlLatch;
 	// pub bounding boxes topic properties
-	// std::string pubBboxesTopicName;
-  // int pubBboxesQueueSize;
-  // bool pubBboxesLatch;
+	std::string pubfaceResultsTopicName;
+  int pubfaceResultsQueueSize;
+  bool pubfaceResultsLatch;
 
 	nodeHandle_.param("subscribers/camera_reading/topic",      cameraTopicName,         std::string("/astra/rgb/image_raw"));
   nodeHandle_.param("subscribers/camera_reading/queue_size", cameraQueueSize,         1);
@@ -152,9 +152,9 @@ void ROSInterface::init() {
   nodeHandle_.param("publisher/control_node/queue_size",     pubControlQueueSize,     1);
   nodeHandle_.param("publisher/control_node/latch",          pubControlLatch,         false);
 
-	// nodeHandle_.param("publisher/bounding_boxes/topic", pubBboxesTopicName, std::string("bounding_boxes"));
-  // nodeHandle_.param("publisher/bounding_boxes/queue_size", pubBboxesQueueSize, 1);
-  // nodeHandle_.param("publisher/bounding_boxes/latch", pubBboxesLatch, false);
+	nodeHandle_.param("publisher/face_results/topic", pubfaceResultsTopicName, std::string("face_results"));
+  nodeHandle_.param("publisher/face_results/queue_size", pubfaceResultsQueueSize, 1);
+  nodeHandle_.param("publisher/face_results/latch", pubfaceResultsLatch, false);
   
 	imageSubscriber_ = imageTransport_.subscribe(cameraTopicName, cameraQueueSize, &ROSInterface::cameraCallback, this);
 	detectionImagePublisher_ =
@@ -162,8 +162,8 @@ void ROSInterface::init() {
   controlSubscriber_ = nodeHandle_.subscribe(subControlTopicName, subControlQueueSize, &ROSInterface::controlCallback, this);
   controlPublisher_ = 
       nodeHandle_.advertise<robot_control_msgs::Feedback>(pubControlTopicName, pubControlQueueSize, pubControlLatch);
-	// bboxesPublisher_ = 
-	//     nodeHandle_.advertise<robot_vision_msgs::BoundingBoxes>(pubBboxesTopicName, pubBboxesQueueSize, pubBboxesLatch);
+	faceResultsPublisher_ = 
+	    nodeHandle_.advertise<robot_vision_msgs::FaceResults>(pubfaceResultsTopicName, pubfaceResultsQueueSize, pubfaceResultsLatch);
 
   // 初始化各个检测器
   faceDetector.init(faceModelPath_, targetDevice_, faceModelBatchSize_, 
@@ -322,6 +322,7 @@ void* ROSInterface::estimateInThread() {
     faces.clear();
     // For every detected face
     for (size_t i = 0; i < pre_frame_result.size(); i++) {
+      robot_vision_msgs::FaceResult rosFaceResult;
       auto& result = pre_frame_result[i];
       cv::Rect rect = result.location & cv::Rect(0, 0, frameWidth_, frameHeight_);
 
@@ -339,6 +340,11 @@ void* ROSInterface::estimateInThread() {
 
           face->_intensity_mean = intensity_mean;
           face->_location = rect;
+          rosFaceResult.xmin = face->_location.x;
+          rosFaceResult.ymax = face->_location.y;
+          rosFaceResult.xmax = face->_location.x + face->_location.width;
+          rosFaceResult.ymax = face->_location.y + face->_location.height;
+
       } else {
           face = std::make_shared<Face>(id++, rect);
       }
@@ -349,18 +355,26 @@ void* ROSInterface::estimateInThread() {
           AgeGenderDetection::Result ageGenderResult = ageGenderDetector[i];
           face->updateGender(ageGenderResult.maleProb);
           face->updateAge(ageGenderResult.age);
+
+          rosFaceResult.gender = face->isMale() ? "Male" : "Female";
+          rosFaceResult.age    = face->getAge();
       }
 
       face->emotionsEnable((emotionsDetector.enabled() &&
                             i < emotionsDetector.maxBatch));
       if (face->isEmotionsEnabled()) {
           face->updateEmotions(emotionsDetector[i]);
+          // TODO for emotion
+          // rosFaceResult.emotion = face->getMainEmotion();
       }
 
       face->headPoseEnable((headPoseDetector.enabled() &&
                             i < headPoseDetector.maxBatch));
       if (face->isHeadPoseEnabled()) {
           face->updateHeadPose(headPoseDetector[i]);
+          rosFaceResult.angle_r = face->getHeadPose().angle_r;
+          rosFaceResult.angle_p = face->getHeadPose().angle_p;
+          rosFaceResult.angle_y = face->getHeadPose().angle_y;
       }
 
       face->landmarksEnable((facialLandmarksDetector.enabled() &&
@@ -368,8 +382,8 @@ void* ROSInterface::estimateInThread() {
       if (face->isLandmarksEnabled()) {
           face->updateLandmarks(facialLandmarksDetector[i]);
       }
-
       faces.push_back(face);
+      detectionMsg.results.push_back(rosFaceResult);
     }
     visualizer->draw(buff_[(buffIndex_+2)%3], faces);
     //publishInThread();
@@ -378,6 +392,8 @@ void* ROSInterface::estimateInThread() {
 			printf("\033[1;1H");
 			printf("\nFPS:%.1f\n", fps_);
 		}
+    // 发布识别结果
+    publishInThread();
   }
 }
 
@@ -467,4 +483,11 @@ bool ROSInterface::getImageStatus(void) {
 bool ROSInterface::isNodeRunning(void) {
 	boost::shared_lock<boost::shared_mutex> lock(mutexNodeStatus_);
 	return isNodeRunning_;
+}
+ 
+void* ROSInterface::publishInThread() {
+  if (FLAG_pub_message && !detectionMsg.results.empty()) {
+    faceResultsPublisher_.publish(detectionMsg);
+    detectionMsg.results.clear();
+  }
 }
