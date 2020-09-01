@@ -70,7 +70,6 @@ void YoloROS::init() {
 	// Initialize weight file for openvino_yolo
 	std::string modelName_;
 	std::string modelPath_;
-	std::string modelPrecision_;
 	std::string labelName_;
 	std::string labelPath_;
 	double iouThreshold_;
@@ -80,14 +79,13 @@ void YoloROS::init() {
 	// Load yolo_model parameters from rosparam server
 	nodeHandle_.param("yolo_model/name", modelName_, std::string("/default"));
 	nodeHandle_.param("yolo_model/folder", modelPath_, std::string("/default"));
-	nodeHandle_.param("yolo_model/precision", modelPrecision_, std::string("/FP32"));
 	nodeHandle_.param("yolo_model/folder", labelPath_, std::string("/default"));
 	nodeHandle_.param("yolo_model/label", labelName_, std::string("/default"));
 	nodeHandle_.param("yolo_model/auto_resize", autoResize_, false);
 	nodeHandle_.param("yolo_model/iou_threshold", iouThreshold_, 0.4);
 	nodeHandle_.param("yolo_model/bbox_threshold", bboxThreshold_, 0.5);
 
-	modelPath_.append(modelPrecision_.append(modelName_));
+	modelPath_.append(modelName_);
 	labelPath_.append(labelName_);
 
 	nodeHandle_.param("under_control", underControl_, bool(false));
