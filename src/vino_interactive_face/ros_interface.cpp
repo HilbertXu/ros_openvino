@@ -340,6 +340,8 @@ void* ROSInterface::estimateInThread() {
 
           face->_intensity_mean = intensity_mean;
           face->_location = rect;
+          rosFaceResult.label = result.label;
+          rosFaceResult.confidence = result.confidence;
           rosFaceResult.xmin = face->_location.x;
           rosFaceResult.ymax = face->_location.y;
           rosFaceResult.xmax = face->_location.x + face->_location.width;
@@ -365,7 +367,7 @@ void* ROSInterface::estimateInThread() {
       if (face->isEmotionsEnabled()) {
           face->updateEmotions(emotionsDetector[i]);
           // TODO for emotion
-          // rosFaceResult.emotion = face->getMainEmotion();
+          rosFaceResult.emotion = face->getMainEmotion().first;
       }
 
       face->headPoseEnable((headPoseDetector.enabled() &&
