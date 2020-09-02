@@ -90,7 +90,11 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include/samples
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/robot_vision_openvino/openpose_vino
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/robot_vision_openvino/vino_openpose
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/robot_vision_openvino/vino_maskrcnn
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/robot_vision_openvino/vino_yolo
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/robot_vision_openvino/vino_interactive_face
+  
   ${ngraph_INCLUDE_DIR}
   ${InferenceEngine_INCLUDE_DIRS}  
   ${InferenceEngine_INCLUDE_DIRS}/../samples
