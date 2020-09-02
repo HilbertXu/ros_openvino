@@ -219,6 +219,8 @@ void YoloROS::cameraCallback(const sensor_msgs::ImageConstPtr& msg) {
 		// 记录相机参数(图像长宽)
 		frameWidth_ = cam_image->image.size().width;
     frameHeight_ = cam_image->image.size().height;
+		detector.image_height = frameHeight_;
+		detector.image_width  = frameWidth_;
 	}
 	return;
 }
@@ -252,6 +254,8 @@ void YoloROS::checkForObjectsActionGoalCB() {
     }
     frameWidth_ = cam_image->image.size().width;
     frameHeight_ = cam_image->image.size().height;
+		detector.image_height = frameHeight_;
+		detector.image_width  = frameWidth_;
   }
   return;
 }

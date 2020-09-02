@@ -160,8 +160,8 @@ namespace object_detection_yolo {
 		double iouThreshold_;
 		double bboxThreshold_;
 		char* weights_;
-		int image_width = 640;
-		int image_height = 480;
+		int image_width;
+		int image_height;
 		std::vector<std::string> labels;
 		// 类构造函数
 		YoloDetector();
