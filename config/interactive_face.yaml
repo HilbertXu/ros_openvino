@@ -13,29 +13,36 @@ face_detection:
   dx_coef: 1
   dy_coef: 1
 
-age_gender:
+mask_detection:
   enable: true
+  model_name: /mask_recognition.xml
+  batch_size: 16
+  raw_output: false
+  async: false
+
+age_gender:
+  enable: false
   model_name: /age-gender-recognition-retail-0013.xml
   batch_size: 16
   raw_output: false
   async: false
 
 head_pose:
-  enable: true
+  enable: false
   model_name: /head-pose-estimation-adas-0001.xml
   batch_size: 16
   raw_output: false
   async: false
 
 emotions: 
-  enable: true
+  enable: false
   model_name: /emotions-recognition-retail-0003.xml
   batch_size: 16
   raw_output: false
   async: false
 
 facial_landmarks:
-  enable: true
+  enable: false
   model_name: /facial-landmarks-35-adas-0002.xml
   batch_size: 16
   raw_output: false
