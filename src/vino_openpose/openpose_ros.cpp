@@ -418,7 +418,7 @@ bool OpenposeROS::isNodeRunning(void) {
 void OpenposeROS::poseClassification(robot_vision_msgs::HumanPose &pose_) {
 	// 目前仅实现简单地判断是否将手举起来
 	if (pose_.RWrist.y < pose_.RElbow.y && pose_.LWrist.y < pose_.LElbow.y) {
-		pose_.pose = "Surrender!!!";
+		pose_.pose = "surrender";
 	} else if (pose_.RWrist.y < pose_.RElbow.y) {
 		pose_.pose = "waving_right";
 	} else if (pose_.LWrist.y < pose_.LElbow.y) {
