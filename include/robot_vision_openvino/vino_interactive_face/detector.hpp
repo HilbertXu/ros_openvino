@@ -109,6 +109,35 @@ struct FaceDetection : BaseDetection {
     void fetchResults();
 };
 
+struct MaskDetection : BaseDetection {
+    struct Result {
+        float maskState;
+    };
+    std::string input;
+    std::string outputState;
+    size_t enquedFaces;
+
+    MaskDetection();
+
+    MaskDetection(const std::string &pathToModel,
+                  const std::string &deviceForInference,
+                  int maxBatch, bool isBatchDynamic, bool isAsync,
+                  bool doRawOutputMessages,
+                  bool isMaskEnabled);
+    
+    void init(const std::string &pathToModel,
+              const std::string &deviceForInference,
+              int maxBatch, bool isBatchDynamic, bool isAsync,
+              bool doRawOutputMessages,
+              bool isMaskEnabled);
+    
+    InferenceEngine::CNNNetwork read(const InferenceEngine::Core& ie) override;
+    void submitRequest() override;
+
+    void enqueue(const cv::Mat &face);
+    Result operator[] (int idx) const;
+};
+
 struct AgeGenderDetection : BaseDetection {
     struct Result {
         float age;
@@ -269,3 +298,4 @@ public:
 private:
     std::map<std::string, CallStat> _timers;
 };
+

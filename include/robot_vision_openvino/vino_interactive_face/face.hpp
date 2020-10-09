@@ -23,23 +23,27 @@ public:
 
     void updateAge(float value);
     void updateGender(float value);
+    void updateMask(float value);
     void updateEmotions(std::map<std::string, float> values);
     void updateHeadPose(HeadPoseDetection::Results values);
     void updateLandmarks(std::vector<float> values);
 
     int getAge();
     bool isMale();
+    bool isMasked();
     std::map<std::string, float> getEmotions();
     std::pair<std::string, float> getMainEmotion();
     HeadPoseDetection::Results getHeadPose();
     const std::vector<float>& getLandmarks();
     size_t getId();
 
+    void maskEnable(bool value);
     void ageGenderEnable(bool value);
     void emotionsEnable(bool value);
     void headPoseEnable(bool value);
     void landmarksEnable(bool value);
 
+    bool isMaskEnabled();
     bool isAgeGenderEnabled();
     bool isEmotionsEnabled();
     bool isHeadPoseEnabled();
@@ -54,10 +58,12 @@ private:
     float _age;
     float _maleScore;
     float _femaleScore;
+    int _masked;
     std::map<std::string, float> _emotions;
     HeadPoseDetection::Results _headPose;
     std::vector<float> _landmarks;
 
+    bool _isMaskEnabled;
     bool _isAgeGenderEnabled;
     bool _isEmotionsEnabled;
     bool _isHeadPoseEnabled;

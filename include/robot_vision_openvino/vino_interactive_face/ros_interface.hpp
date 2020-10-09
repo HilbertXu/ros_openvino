@@ -163,6 +163,14 @@ private:
   double dx_coef;
   double dy_coef;
 
+  // Mask model
+  MaskDetection maskDetector;
+  bool enableMask_;
+  std::string maskModelPath_;
+  int maskModelBatchSize_;
+  bool maskModelRawOutput_;
+  bool maskModelAsync_;
+
   // Age-gender model
   AgeGenderDetection ageGenderDetector;
   bool enableAgeGender_;
