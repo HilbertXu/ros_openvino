@@ -316,6 +316,112 @@ void FaceDetection::fetchResults() {
     }
 }
 
+MaskDetection::MaskDetection() {}
+
+MaskDetection::MaskDetection(const std::string &pathToModel,
+                             const std::string &deviceForInference,
+                             int maxBatch, bool isBatchDynamic, bool isAsync,
+                             bool doRawOutputMessages,
+                             bool isMaskEnabled) 
+    : BaseDetection("Mask", pathToModel, deviceForInference, maxBatch, isBatchDynamic, isAsync, doRawOutputMessages, isMaskEnabled),
+    enquedFaces(0) {
+}
+
+void MaskDetection::init(const std::string &pathToModel,
+                         const std::string &deviceForInference,
+                         int maxBatch, bool isBatchDynamic, bool isAsync,
+                         bool doRawOutputMessages,
+                         bool isMaskEnabled) {
+    // set parameters for base class
+    BaseDetection::topoName = "Mask";
+    BaseDetection::pathToModel = pathToModel;
+    BaseDetection::deviceForInference = deviceForInference;
+    BaseDetection::maxBatch = maxBatch;
+    BaseDetection::isBatchDynamic = isBatchDynamic;
+    BaseDetection::isAsync = isAsync;
+    BaseDetection::doRawOutputMessages = doRawOutputMessages;
+    BaseDetection::_enabled = isMaskEnabled;
+    // Set parameters for Age gender class
+    MaskDetection::enquedFaces = 0;
+}
+
+void MaskDetection::submitRequest() {
+    if (!enquedFaces) return;
+    if (isBatchDynamic) {
+        request->SetBatch(enquedFaces);
+    }
+    BaseDetection::submitRequest();
+    enquedFaces = 0;
+}
+
+void MaskDetection::enqueue(const cv::Mat &face) {
+    if (!enabled()) {
+        return;
+    }
+    if (enquedFaces == maxBatch) {
+        slog::warn << "Number of detected faces more than maximum(" << maxBatch << ") processed by Emotions Recognition network" << slog::endl;
+        return;
+    }
+    if (!request) {
+        request = net.CreateInferRequestPtr();
+    }
+
+    Blob::Ptr inputBlob = request->GetBlob(input);
+
+    matU8ToBlob<uint8_t>(face, inputBlob, enquedFaces);
+
+    enquedFaces++;
+}
+
+MaskDetection::Result MaskDetection::operator[] (int idx) const {
+    Blob::Ptr  maskStateBlob = request->GetBlob(outputState);
+    
+    MaskDetection::Result r = {maskStateBlob->buffer().as<float*>()[idx]};
+    if (doRawOutputMessages) {
+        std::cout << "[" << idx << "] element, Mask State is: " << r.maskState << std::endl;
+    }
+
+    return r;
+}
+
+CNNNetwork MaskDetection::read(const InferenceEngine::Core& ie) {
+    slog::info << "Loading network files for Age/Gender Recognition network" << slog::endl;
+    // Read network
+    auto network = ie.ReadNetwork(pathToModel);
+    // Set maximum batch size to be used.
+    network.setBatchSize(maxBatch);
+    slog::info << "Batch size is set to " << network.getBatchSize() << " for Mask Detection network" << slog::endl;
+
+    // ---------------------------Check inputs -------------------------------------------------------------
+    // Mask Detection network should have one input and two outputs
+    slog::info << "Checking Mask Detection network inputs" << slog::endl;
+    InputsDataMap inputInfo(network.getInputsInfo());
+    if (inputInfo.size() != 1) {
+        throw std::logic_error("Mask Detection network should have only one input");
+    }
+    InputInfo::Ptr& inputInfoFirst = inputInfo.begin()->second;
+    inputInfoFirst->setPrecision(Precision::U8);
+    input = inputInfo.begin()->first;
+    // -----------------------------------------------------------------------------------------------------
+
+    // ---------------------------Check outputs ------------------------------------------------------------
+    slog::info << "Checking Mask Detection network outputs" << slog::endl;
+    OutputsDataMap outputInfo(network.getOutputsInfo());
+    if (outputInfo.size() != 1) {
+        throw std::logic_error("Mask Detection network should have one output layers");
+    }
+    auto it = outputInfo.begin();
+
+    DataPtr ptrStateOutput = (it++)->second;
+
+    outputState = ptrStateOutput->getName();
+
+    slog::info << "Loading Mask Detection model to the " << deviceForInference << " plugin" << slog::endl;
+    _enabled = true;
+    return network;
+}
+
+
 AgeGenderDetection::AgeGenderDetection() {}
 
 AgeGenderDetection::AgeGenderDetection(const std::string &pathToModel,
@@ -870,3 +976,4 @@ CallStat& Timer::operator[](const std::string& name) {
     }
     return _timers[name];
 }
+

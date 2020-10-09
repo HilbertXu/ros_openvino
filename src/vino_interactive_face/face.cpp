@@ -20,6 +20,17 @@ void Face::updateAge(float value) {
     _age = (_age == -1) ? value : 0.95f * _age + 0.05f * value;
 }
 
+void Face::updateMask(float value) {
+    if (value < 0) {
+        return;
+    }
+    if (value > 0.8) {
+        _masked = 1;
+    } else {
+        _masked = 0;
+    }
+}
+
 void Face::updateGender(float value) {
     if (value < 0)
         return;
@@ -57,6 +68,10 @@ bool Face::isMale() {
     return _maleScore > _femaleScore;
 }
 
+bool Face::isMasked() {
+    return _masked;
+}
+
 std::map<std::string, float> Face::getEmotions() {
     return _emotions;
 }
@@ -81,6 +96,9 @@ size_t Face::getId() {
     return _id;
 }
 
+void Face::maskEnable(bool value) {
+    _isMaskEnabled = value;
+}
 void Face::ageGenderEnable(bool value) {
     _isAgeGenderEnabled = value;
 }
@@ -94,6 +112,11 @@ void Face::landmarksEnable(bool value) {
     _isLandmarksEnabled = value;
 }
 
+
+
+bool Face::isMaskEnabled() {
+    return _isMaskEnabled;
+}
 bool Face::isAgeGenderEnabled() {
     return _isAgeGenderEnabled;
 }

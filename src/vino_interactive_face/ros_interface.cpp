@@ -57,6 +57,7 @@ bool ROSInterface::readParameters() {
     viewImage_ = false;
   }
   std::string modelFolder_;
+  std::string maskModelName_;
   std::string ageModelName_;
   std::string faceModelName_;
   std::string headPoseModelName_;
@@ -77,6 +78,12 @@ bool ROSInterface::readParameters() {
   nodeHandle_.param("face_detection/bb_enlarge_coef", bb_enlarge_coef,           double(1.2));
   nodeHandle_.param("face_detection/dx_coef",         dx_coef,                   double(1));
   nodeHandle_.param("face_detection/dy_coef",         dy_coef,                   double(1));
+
+  nodeHandle_.param("mask_detection/enable",       enableMask_,               false);
+  nodeHandle_.param("mask_detection/model_name",   maskModelName_,            std::string("/mask_recognition.xml"));
+  nodeHandle_.param("mask_detection/batch_size",   maskModelBatchSize_,       16);
+  nodeHandle_.param("mask_detection/raw_output",   maskModelRawOutput_,       false);
+  nodeHandle_.param("mask_detection/async",        maskModelAsync_,           false);
 
   nodeHandle_.param("age_gender/enable",           enableAgeGender_,          false);
   nodeHandle_.param("age_gender/model_name",       ageModelName_,             std::string("/age-gender-recognition-retail-0013.xml"));
@@ -103,6 +110,7 @@ bool ROSInterface::readParameters() {
   nodeHandle_.param("facial_landmarks/async",      facialMarkModelAsync_,     false);
 
   faceModelPath_       = modelFolder_ + (faceModelName_);
+  maskModelPath_       = modelFolder_ + (maskModelName_);
   ageModelPath_        = modelFolder_ + (ageModelName_);
   headPoseModelPath_   = modelFolder_ + (headPoseModelName_);
   emotionsModelPath_   = modelFolder_ + (emotionsModelName_);
@@ -171,6 +179,9 @@ void ROSInterface::init() {
                              static_cast<float>(bb_enlarge_coef), static_cast<float>(dx_coef), 
                              static_cast<float>(dy_coef),
                              true);
+  maskDetector.init(maskModelPath_, targetDevice_, maskModelBatchSize_,
+                                       true, maskModelAsync_, maskModelRawOutput_,
+                                       enableMask_);
   ageGenderDetector.init(ageModelPath_, targetDevice_, ageModelBatchSize_,
                                        true, ageModelAsync_, ageModelRawOutput_,
                                        enableAgeGender_);
@@ -190,6 +201,7 @@ void ROSInterface::init() {
   // 此处true表示所有推理器的处理batch size均为可变值，因为每张图像中的人脸数无法确定
   // 考虑到每次设定batch size可能造成运行速度的下降，后期可以考虑改为设定一个较大的batch size (8 or 16)
   Load(faceDetector).into(inferenceEngine_, targetDevice_, false);
+  Load(maskDetector).into(inferenceEngine_, targetDevice_, true);
   Load(ageGenderDetector).into(inferenceEngine_, targetDevice_, true);
   Load(headPoseDetector).into(inferenceEngine_, targetDevice_, true);
   Load(emotionsDetector).into(inferenceEngine_, targetDevice_, true);
@@ -299,6 +311,7 @@ void* ROSInterface::estimateInThread() {
       if (isFaceAnalyticsEnabled) {
         auto clippedRect = face.location & cv::Rect(0, 0, frameWidth_, frameHeight_);
         cv::Mat face = buff_[(buffIndex_+2)%3](clippedRect);
+        maskDetector.enqueue(face);
         ageGenderDetector.enqueue(face);
         headPoseDetector.enqueue(face);
         emotionsDetector.enqueue(face);
@@ -306,12 +319,14 @@ void* ROSInterface::estimateInThread() {
       }
     }
     if (isFaceAnalyticsEnabled) {
+      maskDetector.submitRequest();
       ageGenderDetector.submitRequest();
       headPoseDetector.submitRequest();
       emotionsDetector.submitRequest();
       facialLandmarksDetector.submitRequest();
     }
     if (isFaceAnalyticsEnabled) {
+      maskDetector.wait();
       ageGenderDetector.wait();
       headPoseDetector.wait();
       emotionsDetector.wait();
@@ -349,6 +364,12 @@ void* ROSInterface::estimateInThread() {
 
       } else {
           face = std::make_shared<Face>(id++, rect);
+      }
+
+      face->maskEnable((maskDetector.enabled() && i < maskDetector.maxBatch));
+      if (face->isMaskEnabled()) {
+        MaskDetection::Result maskResult = maskDetector[i];
+        face->updateMask(maskResult.maskState);
       }
 
       face->ageGenderEnable((ageGenderDetector.enabled() &&
