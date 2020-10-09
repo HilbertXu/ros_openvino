@@ -112,9 +112,14 @@ void OpenposeROS::init() {
 
 	nodeHandle_.param("subscribers/camera_reading/topic", cameraTopicName, std::string("/astra/rgb/image_raw"));
   nodeHandle_.param("subscribers/camera_reading/queue_size", cameraQueueSize, 1);
+
+
 	nodeHandle_.param("publishers/estimation_image/topic", estimationImageTopicName, std::string("estimation_image"));
   nodeHandle_.param("publishers/estimation_image/queue_size", estimationImageQueueSize, 1);
   nodeHandle_.param("publishers/estimation_image/latch", estimationImageLatch, true);
+
+
+	
   nodeHandle_.param("subscribers/control_node/topic", subControlTopicName, std::string("/control_to_vision"));
   nodeHandle_.param("subscribers/control_node/queue_size", subControlQueueSize, 1);
   nodeHandle_.param("publisher/control_node/topic", pubControlTopicName, std::string("/vision_to_control"));
